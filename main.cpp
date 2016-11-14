@@ -11,7 +11,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define MAX_LINE_SIZE 1024
+/* sqrt and square */
+#include <cmath>
+
+#define MAX_LINE_SIZE 1024 //our max line size for obj file
 
 typedef struct{
   float x,y,z;
@@ -28,10 +31,9 @@ std::vector<Point> parseFile(const char* filename){
     printf("Couldn't open input file!\n");
     exit(0);
   }else{
-    while(!fin.eof()){
-      char line[MAX_LINE_SIZE],line_type[MAX_LINE_SIZE];
+    char line[MAX_LINE_SIZE],line_type[MAX_LINE_SIZE];
+    while(fin.getline(line,MAX_LINE_SIZE)){
       float x,y,z;
-      fin.getline(line,MAX_LINE_SIZE);
       sscanf(line,"%s %f %f %f",line_type,&x,&y,&z);
       printf("line of type %s is (%.3f,%.3f,%.3f)\n",line_type,x,y,z);
       if(line_type[0]=='v'){ //vertex
@@ -80,6 +82,30 @@ int main(){
   for(int i=0;i<numPoints;i++) printPoint(points[i]);
   //step 2: create mesh in parallel
   //step 2a: get neighborhood for each point
+  bool** neighborhood = new bool*[numPoints];
+  for(int i=0;i<numPoints;i++){
+    neighborhood[i] = new bool[numPoints];
+    for(int j=0;j<numPoints;j++) neighborhood[i][j] = false;
+  }
+
+  const float maxdistance = 1.0;
+  for(int i=0;i<numPoints;i++){
+    Point p1 = points[i];
+    for(int j=0;j<numPoints;j++){
+      Point p2 = points[j];
+      if(std::pow(std::pow(p1.x-p2.x,2)+std::pow(p1.y-p2.y,2)+std::pow(p1.z-p2.z,2),0.5)<=maxdistance){
+        neighborhood[i][j] = true;
+      }
+    }
+  }
+  
+  printf("Adjacency matrix is:\n");
+  for(int i=0;i<numPoints;i++){
+    for(int j=0;j<numPoints;j++){
+      printf("%d%s",neighborhood[i][j],(j<numPoints-1)? ",":"");
+    }
+    printf("\n");
+  }
   //step 2b: get centroid & PCA normals based off of neighborhoods
   //step 2c: Propogate normal directions for surface consistency
   //step 2d: Create cubes around these centers
