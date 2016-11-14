@@ -79,6 +79,13 @@ int main(){
   for(int i=0;i<numPoints;i++) points[i] = vertices[i];
   for(int i=0;i<numPoints;i++) printPoint(points[i]);
   //step 2: create mesh in parallel
+  //step 2a: get neighborhood for each point
+  //step 2b: get centroid & PCA normals based off of neighborhoods
+  //step 2c: Propogate normal directions for surface consistency
+  //step 2d: Create cubes around these centers
+  //step 2e: Approximate mesh based on differences between cubes
+  //step 2f: Refine mesh
+
   //step 3: write mesh to output file
   int slen = 0;
   while(in_filename[slen++]!='\0');
