@@ -14,11 +14,8 @@
 /* sqrt and square */
 #include <cmath>
 
-#define MAX_LINE_SIZE 1024 //our max line size for obj file
-
-typedef struct{
-  float x,y,z;
-} Point;
+/* data structures */
+#include <structures.h>
 
 /* parseFile takes a filename as input, tests it as an obj, and grabs all of its vertices
  * It returns of Point vector of these vertices
