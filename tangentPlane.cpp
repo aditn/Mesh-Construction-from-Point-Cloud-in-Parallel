@@ -9,57 +9,35 @@
 #include <cmath>
 
 /* data structures */
-#include <structures.h>
+#include "structures.h"
 
 /* armadillo is a linear algebra library */
 #include <armadillo>
 
+using namespace std;
 
-/* computeTangentPlanes */
-std::vector<TPlane> computeTangentPlanes(vector<Point>* points, float ro, float delta){
-  // For each point, group points within ro+delta into nearby_points 
-  std::vector<TPlane> tangent_planes (*points.size);
-  int i,j,k;
-  for (i=0;i<numPoints;i++){
-    std::vector<Point> nearby_points;
-    k=0;
-    for (j=0;j<numPoints;j++){
-      // if point within ro+delta, add to nearby_points
-      if (dist(points[i],points[j])<=(ro+delta)){
-        nearby_points[k] = points[j];
-        k++;
-      }
-    }
-    tangent_planes[i] = leastSqTPlane(nearby_points,k);
-  }
-}
-
-/* leastSqTPlane */
-TPlane leastSqTPlane(vector<Point>* nearby_points, int numPoints){
-  TPlane tangentPlane;
-  mat matrixPoints = zeros<mat>(3,numPoints);
-  mat centroid = zeros<mat>(3,numPoints);
-  int i;
-  for(i=0;i<nearby_points.size;i++){
-    // centroid computation
-    tangetPlane.center.x += nearby_points[i].x;
-    tangetPlane.center.y += nearby_points[i].y;
-    tangetPlane.center.z += nearby_points[i].z;
+Plane getTangentPlane(vector<V3> neighbors){
+  Plane tangentPlane;
+  tangentPlane.center = V3(0.f,0.f,0.f);
+  tangentPlane.normal = V3(0.f,0.f,1.f);
+  int numNeighbors = neighbors.size();
+  printf("%d neighbors\n",numNeighbors);
+  for(int i=0;i<numNeighbors;i++){
+    tangentPlane.center.add(neighbors[i]);
     
-    centroid(i,0) += nearby_points[i].x;
-    centroid(i,1) += nearby_points[i].y;
-    centroid(i,2) += nearby_points[i].z;
-
+    centroid(i,0) += neighbors[i].x;
+    centroid(i,1) += neighbors[i].y;
+    centroid(i,2) += neighbors[i].z;
+    
     // place points into matrix for normal computation
-    matrixPoints(i,0) = nearby_points[i].x;
-    matrixPoints(i,1) = nearby_points[i].y;
-    matrixPoints(i,2) = nearby_points[i].z;
+    matrixPoints(i,0) = neighbors[i].x;
+    matrixPoints(i,1) = neighbors[i].y;
+    matrixPoints(i,2) = neighbors[i].z;
   }
+  
   // centroid computation
-  tangentPlane.center.x /= numPoints;
-  tangentPlane.center.y /= numPoints;
-  tangentPlane.center.z /= numPoints;
-  centroid /= numPoints;
+  tangentPlane.center.scale(1.0/numNeighbors);
+  centroid /= numNeighbors;
 
   // covariance matrix
   matrixPoints -= centroid;
@@ -80,9 +58,23 @@ TPlane leastSqTPlane(vector<Point>* nearby_points, int numPoints){
     }
   }
   
-  TPlane.normal.x = eigvec(0,i);
-  TPlane.normal.y = eigvec(1,i);
-  TPlane.normal.z = eigvec(2,i);
+  tangentPlane.normal = V3(eigvec(0,i), eigvec(1,i), eigvec(2,i));
+  return tangentPlane;
+}
 
+Plane* computeTangentPlanes(V3* points, int numPoints, float ro, float delta){
+  Plane* planes = (Plane *) malloc(sizeof(Plane)*numPoints);
+  for (int i=0;i<numPoints;i++){
+    vector<V3> neighbors;
+    V3 p1 = points[i];
+    for (int j=0;j<numPoints;j++){
+      // if point within ro+delta, add to nearby_points
+      V3 p2 = points[j];
+      float dist = p1.dist(p2);
+      if (dist<=(ro+delta)) neighbors.push_back(points[j]);
+    }
+    planes[i] = getTangentPlane(neighbors);
+  }
+  return planes;
 }
 
