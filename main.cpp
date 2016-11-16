@@ -15,13 +15,14 @@
 #include <cmath>
 
 /* data structures */
-#include <structures.h>
+#include "structures.h"
+#include "tangentPlane.h"
 
 /* parseFile takes a filename as input, tests it as an obj, and grabs all of its vertices
  * It returns of Point vector of these vertices
  * An error will be thrown if file cannot be read */
-std::vector<Point> parseFile(const char* filename){
-  std::vector<Point> points;
+std::vector<V3> parseFile(const char* filename){
+  std::vector<V3> points;
   std::ifstream fin;
   fin.open(filename);
   if(!fin.good()){
@@ -34,7 +35,7 @@ std::vector<Point> parseFile(const char* filename){
       sscanf(line,"%s %f %f %f",line_type,&x,&y,&z);
       printf("line of type %s is (%.3f,%.3f,%.3f)\n",line_type,x,y,z);
       if(line_type[0]=='v'){ //vertex
-        Point p;
+        V3 p;
         p.x=x;p.y=y;p.z=z;
         points.push_back(p);
       }else printf("couldn't recognize type %s\n",line_type);
@@ -44,7 +45,7 @@ std::vector<Point> parseFile(const char* filename){
   return points;
 }
 
-void saveMesh(Point* points,int numPoints, char* out_filename){
+void saveMesh(V3* points,int numPoints, char* out_filename){
   std::ofstream fout;
   fout.open(out_filename);
   if(!fout.good()){
@@ -62,7 +63,7 @@ void saveMesh(Point* points,int numPoints, char* out_filename){
   fout.close();
 }
 
-inline void printPoint(Point p){
+inline void printPoint(V3 p){
   printf("(%.3f,%.3f,%.3f)\n",p.x,p.y,p.z);
 }
 
@@ -72,38 +73,20 @@ int main(){
 
   //step 1: parse input file/stream
   const char* in_filename = "inputs/test.obj";
-  std::vector<Point> vertices = parseFile(in_filename);
+  std::vector<V3> vertices = parseFile(in_filename);
   int numPoints = vertices.size();
-  Point* points = (Point*) malloc(sizeof(Point)*numPoints);
+  V3* points = (V3*) malloc(sizeof(V3)*numPoints);
   for(int i=0;i<numPoints;i++) points[i] = vertices[i];
   for(int i=0;i<numPoints;i++) printPoint(points[i]);
   //step 2: create mesh in parallel
   //step 2a: get neighborhood for each point
-  bool** neighborhood = new bool*[numPoints];
-  for(int i=0;i<numPoints;i++){
-    neighborhood[i] = new bool[numPoints];
-    for(int j=0;j<numPoints;j++) neighborhood[i][j] = false;
-  }
-
-  const float maxdistance = 1.0;
-  for(int i=0;i<numPoints;i++){
-    Point p1 = points[i];
-    for(int j=0;j<numPoints;j++){
-      Point p2 = points[j];
-      if(std::pow(std::pow(p1.x-p2.x,2)+std::pow(p1.y-p2.y,2)+std::pow(p1.z-p2.z,2),0.5)<=maxdistance){
-        neighborhood[i][j] = true;
-      }
-    }
-  }
-  
-  printf("Adjacency matrix is:\n");
-  for(int i=0;i<numPoints;i++){
-    for(int j=0;j<numPoints;j++){
-      printf("%d%s",neighborhood[i][j],(j<numPoints-1)? ",":"");
-    }
-    printf("\n");
-  }
   //step 2b: get centroid & PCA normals based off of neighborhoods
+  Plane* planes = computeTangentPlanes(points,numPoints,0.6,0.5);
+  for(int i=0;i<numPoints;i++){
+    printf("Plane %d: \n\t",i);
+    printPoint(planes[i].center);
+    printf("\t");printPoint(planes[i].normal);
+  }
   //step 2c: Propogate normal directions for surface consistency
   //step 2d: Create cubes around these centers
   //step 2e: Approximate mesh based on differences between cubes
