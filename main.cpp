@@ -89,6 +89,7 @@ int main(){
   }
   //step 2c: Propogate normal directions for surface consistency
   //step 2d: Create cubes around these centers
+
   //step 2e: Approximate mesh based on differences between cubes
   //step 2f: Refine mesh
 

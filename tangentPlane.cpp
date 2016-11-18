@@ -18,7 +18,6 @@ Plane getTangentPlane(vector<V3> neighbors){
   tangentPlane.center = V3(0.f,0.f,0.f);
   tangentPlane.normal = V3(0.f,0.f,1.f);
   int numNeighbors = neighbors.size();
-  printf("%d neighbors\n",numNeighbors);
   for(int i=0;i<numNeighbors;i++) tangentPlane.center.add(neighbors[i]);
   tangentPlane.center.scale(1.0/numNeighbors);
 
