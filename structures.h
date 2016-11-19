@@ -1,4 +1,5 @@
 #include <cmath>
+#include <stdio.h>
 #define MAX_LINE_SIZE 1024 //our max line size for obj file
 
 struct V3{
@@ -44,6 +45,54 @@ inline V3 operator-(const V3& a, const V3& b){
     out.z = a.z-b.z;
     return out;
 }
+inline V3 operator+(const V3& a, const V3& b){
+    V3 out;
+    out.x = a.x+b.x;
+    out.y = a.y+b.y;
+    out.z = a.z+b.z;
+    return out;
+}
+
+struct bbox{
+  V3 min,max;
+  bbox(){
+    this->min = V3();
+    this->max = V3();
+  }
+  bbox(V3 p1, V3 p2){
+    this->min = V3(std::min(p1.x,p2.x),std::min(p1.y,p2.y),std::min(p1.z,p2.z));
+    this->max = V3(std::max(p1.x,p2.x),std::max(p1.y,p2.y),std::max(p1.z,p2.z));
+  }
+  bbox(V3 min,float width,float height,float depth){
+    this->min=V3(min);
+    this->max=min+V3(width,height,depth);
+  }
+
+  /** update bbox to include a point */
+  void expand(V3 p){
+    if(p.x<this->min.x){
+      this->min.x = p.x;
+    }else if(p.x>this->max.x){
+      this->max.x = p.x;
+    }
+
+    if(p.y<this->min.y){
+      this->min.y = p.y;
+    }else if(p.y>this->max.y){
+      this->max.y = p.y;
+    }
+
+    if(p.z<this->min.z){
+      this->min.z = p.z;
+    }else if(p.z>this->max.z){
+      this->max.z = p.z;
+    }
+  }
+
+  void print(){
+    printf("bbox is (%.3f,%.3f,%.3f)<->(%.3f,%.3f,%.3f)\n",this->min.x,this->min.y,this->min.z,this->max.x,this->max.y,this->max.z);
+  }
+};
 
 typedef struct{
   V3 center, normal;

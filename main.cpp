@@ -76,8 +76,13 @@ int main(){
   std::vector<V3> vertices = parseFile(in_filename);
   int numPoints = vertices.size();
   V3* points = (V3*) malloc(sizeof(V3)*numPoints);
-  for(int i=0;i<numPoints;i++) points[i] = vertices[i];
-  for(int i=0;i<numPoints;i++) printPoint(points[i]);
+  bbox system;
+  for(int i=0;i<numPoints;i++){
+    points[i] = vertices[i];
+    printPoint(points[i]);
+    system.expand(points[i]);
+  }
+  system.print();
   //step 2: create mesh in parallel
   //step 2a: get neighborhood for each point
   //step 2b: get centroid & PCA normals based off of neighborhoods
