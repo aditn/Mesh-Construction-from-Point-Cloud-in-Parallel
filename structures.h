@@ -69,6 +69,16 @@ inline V3 operator+=(const V3& a, const V3& b){
     out.z = a.z+b.z;
     return out;
 }
+inline V3 operator*(const V3& a,const float& b){
+  V3 out = V3(a);
+  out.scale(b);
+  return out;
+}
+inline V3 operator*(const float& b,const V3& a){
+  V3 out = V3(a);
+  out.scale(b);
+  return out;
+}
 
 struct bbox{
   V3 min,max;
@@ -111,6 +121,30 @@ struct bbox{
   }
 };
 
-typedef struct{
+struct Plane{
   V3 center, normal;
-} Plane;
+};
+
+struct Edge{
+  V3 v1,v2;
+  Edge(){
+  this->v1 = V3();
+  this->v2 = V3();
+  }
+  Edge(V3 v1,V3 v2){
+    this->v1 = V3(v1);
+    this->v2 = V3(v2);
+  }
+};
+
+struct E{
+  int v1,v2;
+  E(){
+    this->v1=0;
+    this->v2=0;
+  }
+  E(int v1,int v2){
+    this->v1=v1;
+    this->v2=v2;
+  }
+};
