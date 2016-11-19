@@ -96,6 +96,35 @@ int main(){
   //step 2d: Create cubes around these centers
 
   //step 2e: Approximate mesh based on differences between cubes
+  V3 universeSize = system.max-system.min;
+  float sideLength = 0.5; //cube side length
+  //modify system size to fit int num of cubes in each dir
+  int widthDif = universeSize.x-std::ceil(universeSize.x/sideLength)*sideLength,
+     heightDif = universeSize.y-std::ceil(universeSize.y/sideLength)*sideLength,
+      depthDif = universeSize.z-std::ceil(universeSize.z/sideLength)*sideLength;
+  V3 addon = V3(widthDif,heightDif,depthDif);
+  addon.scale(0.5); // add evenly to min and max
+  system.max += addon;
+  system.min -= addon;
+  V3 numCubes = system.max-system.min;
+  numCubes.scale(1.0/sideLength);
+  if(numCubes.x==0)numCubes.x++;
+  if(numCubes.y==0)numCubes.y++;
+  if(numCubes.z==0)numCubes.z++;
+  printf("Num cubes in each dir is:\n");
+  printPoint(numCubes);
+
+  bbox*** cubes = (bbox***) malloc(numCubes.x*sizeof(bbox**));
+  for(int i=0;i<numCubes.x;i++){
+    cubes[i] = (bbox**) malloc(numCubes.y*sizeof(bbox*));
+    for(int j=0;j<numCubes.y;j++){
+      cubes[i][j] = (bbox*) malloc(numCubes.z*sizeof(bbox));
+      for(int k=0;k<numCubes.z;k++){
+        cubes[i][j][k] = bbox(system.min+V3(i*sideLength,j*sideLength,k*sideLength),sideLength,sideLength,sideLength);
+        printf("cube %d,%d,%d is:\n",i,j,k);cubes[i][j][k].print();
+      }
+    }
+  }
   //step 2f: Refine mesh
 
   //step 3: write mesh to output file

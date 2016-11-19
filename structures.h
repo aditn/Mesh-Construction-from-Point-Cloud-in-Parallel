@@ -37,6 +37,9 @@ struct V3{
     out.z = this->x*v.y-this->y*v.x;
     return out;
   }
+  void print(){
+    printf("(%.3f,%.3f,%.3f)\n",this->x,this->y,this->z);
+  }
 };
 inline V3 operator-(const V3& a, const V3& b){
     V3 out;
@@ -46,6 +49,20 @@ inline V3 operator-(const V3& a, const V3& b){
     return out;
 }
 inline V3 operator+(const V3& a, const V3& b){
+    V3 out;
+    out.x = a.x+b.x;
+    out.y = a.y+b.y;
+    out.z = a.z+b.z;
+    return out;
+}
+inline V3 operator-=(const V3& a, const V3& b){
+    V3 out;
+    out.x = a.x-b.x;
+    out.y = a.y-b.y;
+    out.z = a.z-b.z;
+    return out;
+}
+inline V3 operator+=(const V3& a, const V3& b){
     V3 out;
     out.x = a.x+b.x;
     out.y = a.y+b.y;
