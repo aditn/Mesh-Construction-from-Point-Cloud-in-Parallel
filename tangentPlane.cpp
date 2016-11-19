@@ -21,7 +21,13 @@ Plane getTangentPlane(vector<V3> neighbors){
   for(int i=0;i<numNeighbors;i++) tangentPlane.center.add(neighbors[i]);
   tangentPlane.center.scale(1.0/numNeighbors);
 
-  //TODO: compute tangent
+  //TODO: compute tangent the right way
+  if(numNeighbors>=3){
+    V3 v1 = neighbors[1]-neighbors[0];
+    V3 v2 = neighbors[2]-neighbors[0];
+    tangentPlane.normal = v1.cross(v2);
+  }
+
   return tangentPlane;
 }
 
@@ -39,4 +45,22 @@ Plane* computeTangentPlanes(V3* points, int numPoints, float ro, float delta){
     planes[i] = getTangentPlane(neighbors);
   }
   return planes;
+}
+
+float getDist(V3 p, Plane* planes, int numPlanes){
+  //given a point, approximate its distance to the nearest plane
+  
+  //first find closest plane
+  int closestIdx = 0;
+  float closestDist = p.dist(planes[0].center);
+  for(int i=1;i<numPlanes;i++){
+    float curDist = p.dist(planes[i].center);
+    if(curDist<closestDist){
+      closestDist = curDist;
+      closestIdx = i;
+    }
+  }
+
+  //then approximate dist to surface
+  return (p-planes[closestIdx].center).dot(planes[closestIdx].normal); 
 }
