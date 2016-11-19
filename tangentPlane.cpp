@@ -21,6 +21,7 @@ Plane getTangentPlane(vector<V3> neighbors){
   tangentPlane.center = V3(0.f,0.f,0.f);
   tangentPlane.normal = V3(0.f,0.f,1.f);
   int numNeighbors = neighbors.size();
+/*<<<<<<< HEAD
   printf("%d neighbors\n",numNeighbors);
   for(int i=0;i<numNeighbors;i++){
     tangentPlane.center.add(neighbors[i]);
@@ -36,6 +37,9 @@ Plane getTangentPlane(vector<V3> neighbors){
   }
   
   // centroid computation
+=======
+  for(int i=0;i<numNeighbors;i++) tangentPlane.center.add(neighbors[i]);
+>>>>>>> 347f890836bbfbfc5f1866182b4f4c655f7724ac
   tangentPlane.center.scale(1.0/numNeighbors);
   centroid /= numNeighbors;
 
@@ -48,6 +52,7 @@ Plane getTangentPlane(vector<V3> neighbors){
   fmat eigvec;
   eig_sym(eigval, eigvec, cov);
 
+<<<<<<< HEAD
   // eigenvector with smallest eigenvalue is the normal
   float smallEigVal=100;
   int smallEigValInd;
@@ -59,6 +64,15 @@ Plane getTangentPlane(vector<V3> neighbors){
   }
   
   tangentPlane.normal = V3(eigvec(0,i), eigvec(1,i), eigvec(2,i));
+=======
+  //TODO: compute tangent the right way
+  if(numNeighbors>=3){
+    V3 v1 = neighbors[1]-neighbors[0];
+    V3 v2 = neighbors[2]-neighbors[0];
+    tangentPlane.normal = v1.cross(v2);
+  }
+
+>>>>>>> 347f890836bbfbfc5f1866182b4f4c655f7724ac
   return tangentPlane;
 }
 
@@ -78,3 +92,24 @@ Plane* computeTangentPlanes(V3* points, int numPoints, float ro, float delta){
   return planes;
 }
 
+<<<<<<< HEAD
+=======
+float getDist(V3 p, Plane* planes, int numPlanes){
+  //given a point, approximate its distance to the nearest plane
+  
+  //first find closest plane
+  int closestIdx = 0;
+  float closestDist = p.dist(planes[0].center);
+  for(int i=1;i<numPlanes;i++){
+    float curDist = p.dist(planes[i].center);
+    if(curDist<closestDist){
+      closestDist = curDist;
+      closestIdx = i;
+    }
+  }
+
+  //then approximate dist to surface
+  return (p-planes[closestIdx].center).dot(planes[closestIdx].normal); 
+}
+>>>>>>> 347f890836bbfbfc5f1866182b4f4c655f7724ac
+*/
