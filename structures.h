@@ -34,3 +34,17 @@ struct V3{
 typedef struct{
   V3 center, normal;
 } Plane;
+
+struct mat{
+  short row, col;
+  double* matrix;
+  mat(){
+    this->row=0;
+    this->col=0;
+  }
+  mat(int row, int col, int pointerToMat){
+    this->row = row;
+    this->col = col;
+    this->matrix = pointerToMat;
+  }
+}
