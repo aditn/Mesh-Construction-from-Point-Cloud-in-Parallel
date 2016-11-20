@@ -1,4 +1,4 @@
-/*I mean this could be c or c++ but I feel like c++ is nicer and lets us use cooler data structures*/
+#define INPUT_FILE "inputs/sphere1000.obj"
 
 /* needed for file processing */
 #include <iostream>
@@ -50,19 +50,26 @@ std::vector<V3> parseFile(const char* filename){
   return points;
 }
 
-void saveMesh(V3* points,int numPoints, char* out_filename){
+void saveMesh(std::vector<V3> points, std::vector<E> edges, char* out_filename){
   std::ofstream fout;
   fout.open(out_filename);
   if(!fout.good()){
     printf("couldn't write to %s\n",out_filename);
     exit(0);
   }else{
-    for(int i=0;i<numPoints;i++){
+    for(int i=0;i<points.size();i++){
       float x,y,z;
       x=points[i].x;
       y=points[i].y;
       z=points[i].z;
       fout << "v " << x << " " << y << " " << z << "\n";
+    }
+    
+    for(int i=0;i<edges.size();i++){
+      int v1,v2;
+      v1=edges[i].v1;
+      v2=edges[i].v2;
+      fout << "e " << v1 << " " << v2 << "\n";
     }
   }
   fout.close();
@@ -77,7 +84,7 @@ int main(){
   //until we decide how we're actually gonna grab kinect stuff
 
   //step 1: parse input file/stream
-  const char* in_filename = "inputs/test.obj";
+  const char* in_filename = INPUT_FILE;
   std::vector<V3> vertices = parseFile(in_filename);
   int numPoints = vertices.size();
   V3* points = (V3*) malloc(sizeof(V3)*numPoints);
@@ -92,11 +99,11 @@ int main(){
   //step 2a: get neighborhood for each point
   //step 2b: get centroid & PCA normals based off of neighborhoods
   Plane* planes = computeTangentPlanes(points,numPoints,0.6,0.5);
-  for(int i=0;i<numPoints;i++){
+  /*for(int i=0;i<numPoints;i++){
     printf("Plane %d: \n\t",i);
     printPoint(planes[i].center);
     printf("\t");printPoint(planes[i].normal);
-  }
+  }*/
   //step 2c: Propogate normal directions for surface consistency
   //step 2d: Create cubes around these centers
 
@@ -276,8 +283,8 @@ int main(){
     compressed_edges.push_back(E(v1x,v2x));
   }
 
-  for(int i=0;i<newvertices.size();i++) printPoint(newvertices[i]);
-  for(int i=0;i<compressed_edges.size();i++) printf("edge (%d,%d),",compressed_edges[i].v1,compressed_edges[i].v2);
+  //for(int i=0;i<newvertices.size();i++) printPoint(newvertices[i]);
+  //for(int i=0;i<compressed_edges.size();i++) printf("edge (%d,%d),",compressed_edges[i].v1,compressed_edges[i].v2);
 
   //step 2f: Refine mesh
 
@@ -289,6 +296,6 @@ int main(){
   for(int i=2;i<slen-5;i++) out_filename[i+1]=in_filename[i];
   for(int i=0;i<9;i++) out_filename[slen-4+i]="_out.obj"[i]; //9 includes null terminator
   printf("saving to %s\n",out_filename);
-  saveMesh(points,numPoints,out_filename);
+  saveMesh(newvertices,compressed_edges,out_filename);
   return 0;
 }
