@@ -1,3 +1,4 @@
+#include "../structures.h"
 
 // Assume size of out is dealt with before this function
 void matMult(mat in1, mat in2, mat out){
@@ -13,21 +14,25 @@ void matMult(mat in1, mat in2, mat out){
 
 // Computes transpose of matrix in
 void transpose(mat in, mat out){
-  float outMat[in.col][in.row];
+  double outMat[in.col][in.row];
   for(int i=0; i<in.col; i++){
     for(int j=0; j<in.row; j++){
       outMat[j][i] = in.matrix[i][j];
     }
   }
-  out = mat(in.col,in.row,&outMat);
+  out = mat(in.col,in.row,(double **)outMat);
 }
 
 // Subtract
-void subtractCentroid(mat in, Point center){
+void subtractCentroid(mat in, V3 center){
   int cols = in.col;
+  float cent[3];
+  cent[0]=center.x;
+  cent[1]=center.y;
+  cent[2]=center.z;
   for (int i = 0; i<cols; i++){
     for (int j=0; j<3; j++){
-      in.matrix[i][j] = center[j];
+      in.matrix[i][j] -= (double)cent[j];
     }
   }
 }

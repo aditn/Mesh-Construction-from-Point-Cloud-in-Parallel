@@ -33,50 +33,45 @@ Plane getTangentPlane(vector<V3> neighbors){
 
   // init matrixNeighbors matrix
   double neighMat[numNeighbors][3];
-  mat matrixNeighbors = mat(numNeighbors, 3, &neighMat);
+  mat matrixNeighbors = mat(numNeighbors, 3, (double **)neighMat);
 
   for(int i=0;i<numNeighbors;i++){
     tangentPlane.center.add(neighbors[i]);
 
     // place points into matrix for normal computation
-    matrixNeighbors[i][0] = neighbors[i].x;
-    matrixNeighbors[i][1] = neighbors[i].y;
-    matrixNeighbors[i][2] = neighbors[i].z;
+    matrixNeighbors.matrix[i][0] = neighbors[i].x;
+    matrixNeighbors.matrix[i][1] = neighbors[i].y;
+    matrixNeighbors.matrix[i][2] = neighbors[i].z;
   }
   
   // centroid computation
   tangentPlane.center.scale(1.0/numNeighbors);
 
   // covariance matrix
-  // TODO: write subtractCentroid
   subtractCentroid(matrixNeighbors, tangentPlane.center);
-  
-  // TODO: write matTranspose
+
   double neighMatT[3][numNeighbors];
-  mat matrixNeighborsT = mat(3, numNeighbors, &neighMatT);
+  mat matrixNeighborsT = mat(3, numNeighbors, (double **)neighMatT);
   transpose(matrixNeighbors, matrixNeighborsT);
 
   // Matrix Multiplication
-  mat cov;
-  cov.row = 3;
-  cov.col = 3;
-  cov.matrix[cov.row][cov.col];
-  matMult(matrixPoints, matrixPointsT, cov);
+  double covMat[3][3];
+  mat cov = mat(3,3,(double **)covMat);
 
-  double[3][3] U,S,V;
   // get svd
-  svd3((double *)U, (double *)S, (double *)V, (double *)cov);
+  double U[3][3],S[3],V[3][3];
+  svd3((double *)U, (double *)S, (double *)V, (double *)cov.matrix);
 
   // eigenvector with smallest eigenvalue is the normal
   int smallEigValInd;
-  double minEigVal = min(V[0][0], V[1][1]);
-  minEigVal = min(minEigVal, V[2][2]);
+  double minEigVal = min(S[0], S[1]);
+  minEigVal = min(minEigVal, S[2]);
 
-  if (minEigVal == V[0][0]) smallEigValInd = 0;
-  else if (minEigVal == V[1][1]) smallEigValInd = 1;
+  if (minEigVal == S[0]) smallEigValInd = 0;
+  else if (minEigVal == S[1]) smallEigValInd = 1;
   else smallEigValInd = 2;
   
-  tangentPlane.normal = V3(eigvec[i,smallEigValInd], eigvec[i,smallEigValInd], eigvec[i,smallEigValInd]);
+  tangentPlane.normal = V3(V[0][smallEigValInd], V[1][smallEigValInd], V[2][smallEigValInd]);
   return tangentPlane;
 }
 
@@ -102,7 +97,7 @@ Plane* computeTangentPlanes(V3* points, int numPoints, float ro, float delta){
  * Consistent Tangent Plane Orientation
  **************************************/
 
-Plane* getNeighborPlanesWithCost(Plane* allTangentPlanes, int currentPlaneIndex, float ro, float delta){
+/*Plane* getNeighborPlanesWithCost(Plane* allTangentPlanes, int currentPlaneIndex, float ro, float delta){
   int numPlanes;
   Plane currentPlane = allTangentPlanes[currentPlaneIndex];
   V3 currentCentroid = currentPlane.center;
@@ -118,4 +113,4 @@ Plane* getNeighborPlanesWithCost(Plane* allTangentPlanes, int currentPlaneIndex,
   }
 
   return neighborPlanes;
-}
+}*/

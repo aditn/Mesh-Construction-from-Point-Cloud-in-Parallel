@@ -105,57 +105,57 @@
 
 
 /* Computes cross product of 3D vectors x, y and stores the result in z */
-static inline void cross(double * restrict z, const double * restrict x, 
-	const double * restrict y);
+static inline void cross(double *  z, const double *  x, 
+	const double *  y);
 
 /* Sorts 3 elements */
-static inline void sort3(double * restrict x);
+static inline void sort3(double *  x);
 
 /* Normalizes a 3D vector (with respect to L2) */
-static inline void unit3(double * restrict x);
+static inline void unit3(double *  x);
 
 /*
  * Solves for the roots of a monic cubic polynomial with 3 coefficients 
  * ordered by degree that is assumed to have 3 real roots (D <= 0) 
  */
-void solvecubic(double * restrict c);
+void solvecubic(double *  c);
 
 /* Computes the LDUP decomposition in-place */
-void ldu3(double * restrict A, int * restrict P);
+void ldu3(double *  A, int *  P);
 
 /* Does the backward-solve step, or U*x = y */
-static inline void ldubsolve3(double * restrict x, const double * restrict y, 
-	const double * restrict LDU, const int * restrict P);
+static inline void ldubsolve3(double *  x, const double *  y, 
+	const double *  LDU, const int *  P);
 
 /* Explicitly computes the SVD of a 3x3 matrix */
-void svd3(double * restrict U, double * restrict S, double * restrict V, 
-	const double * restrict A);
+void svd3(double *  U, double *  S, double *  V, 
+	const double *  A);
 
 /* Computes the matrix multiplication C = A*B */
-static inline void matmul3(double * restrict C, const double * restrict A, 
-	const double * restrict B);
+static inline void matmul3(double *  C, const double *  A, 
+	const double *  B);
 
 /* Computes the matrix multiplication y = A*x */
-static inline void matvec3(double * restrict y, const double * restrict A,
-	const double * restrict x);
+static inline void matvec3(double *  y, const double *  A,
+	const double *  x);
 
 /* Computes the matrix multiplication AA = A^T*A */
-static inline void ata3(double * restrict AA, const double * restrict A);
+static inline void ata3(double *  AA, const double *  A);
 
 /* Computes the matrix multiplication AA = A*A^T */
-static inline void aat3(double * restrict AA, const double * restrict A);
+static inline void aat3(double *  AA, const double *  A);
 
 /* Computes the matrix transpose of A */
-static inline void trans3(double * restrict A);
+static inline void trans3(double *  A);
 
-static inline void cross(double * restrict z, const double * restrict x, 
-	const double * restrict y) {
+static inline void cross(double *  z, const double *  x, 
+	const double *  y) {
 	z[0] = x[1]*y[2]-x[2]*y[1];
 	z[1] = -(x[0]*y[2]-x[2]*y[0]);
 	z[2] = x[0]*y[1]-x[1]*y[0];
 }
 
-static inline void sort3(double * restrict x) {
+static inline void sort3(double *  x) {
 	double tmp;
 
 	if (x[0] < x[1]) {
@@ -178,15 +178,15 @@ static inline void sort3(double * restrict x) {
 	}
 }
 
-static inline void unit3(double * restrict x) {
+static inline void unit3(double *  x) {
 	double tmp = sqrt(x[0]*x[0] + x[1]*x[1] + x[2]*x[2]);
 	x[0] /= tmp;
 	x[1] /= tmp;
 	x[2] /= tmp;
 }
 
-static inline void ldubsolve3(double * restrict x, const double * restrict y, 
-	const double * restrict LDU, const int * restrict P) {
+static inline void ldubsolve3(double *  x, const double *  y, 
+	const double *  LDU, const int *  P) {
 	x[P[2]] = y[2];
 	x[P[1]] = y[1] - LDU[3*P[2]+1]*x[P[2]];
 	x[P[0]] = y[0] - LDU[3*P[2]+0]*x[P[2]] - LDU[3*P[1]+0]*x[P[1]];
@@ -200,8 +200,8 @@ static inline void ldubsolve3(double * restrict x, const double * restrict y,
 #endif
 }
 
-static inline void matmul3(double * restrict C, const double * restrict A, 
-	const double * restrict B) {
+static inline void matmul3(double *  C, const double *  A, 
+	const double *  B) {
 	C[3*0+0] = A[3*0+0]*B[3*0+0] + A[3*1+0]*B[3*0+1] + A[3*2+0]*B[3*0+2];
 	C[3*1+0] = A[3*0+0]*B[3*1+0] + A[3*1+0]*B[3*1+1] + A[3*2+0]*B[3*1+2];
 	C[3*2+0] = A[3*0+0]*B[3*2+0] + A[3*1+0]*B[3*2+1] + A[3*2+0]*B[3*2+2];
@@ -215,14 +215,14 @@ static inline void matmul3(double * restrict C, const double * restrict A,
 	C[3*2+2] = A[3*0+2]*B[3*2+0] + A[3*1+2]*B[3*2+1] + A[3*2+2]*B[3*2+2];
 }
 
-static inline void matvec3(double * restrict y, const double * restrict A,
-	const double * restrict x) {
+static inline void matvec3(double *  y, const double *  A,
+	const double *  x) {
 	y[0] = A[3*0+0]*x[0] + A[3*1+0]*x[1] + A[3*2+0]*x[2];
 	y[1] = A[3*0+1]*x[0] + A[3*1+1]*x[1] + A[3*2+1]*x[2];
 	y[2] = A[3*0+2]*x[0] + A[3*1+2]*x[1] + A[3*2+2]*x[2];
 }
 
-static inline void ata3(double * restrict AA, const double * restrict A) {
+static inline void ata3(double *  AA, const double *  A) {
 	AA[3*0+0] = A[3*0+0]*A[3*0+0] + A[3*0+1]*A[3*0+1] + A[3*0+2]*A[3*0+2];
 	AA[3*1+0] = A[3*0+0]*A[3*1+0] + A[3*0+1]*A[3*1+1] + A[3*0+2]*A[3*1+2];
 	AA[3*2+0] = A[3*0+0]*A[3*2+0] + A[3*0+1]*A[3*2+1] + A[3*0+2]*A[3*2+2];
@@ -236,7 +236,7 @@ static inline void ata3(double * restrict AA, const double * restrict A) {
 	AA[3*2+2] = A[3*2+0]*A[3*2+0] + A[3*2+1]*A[3*2+1] + A[3*2+2]*A[3*2+2];
 }
 
-static inline void aat3(double * restrict AA, const double * restrict A) {
+static inline void aat3(double *  AA, const double *  A) {
 	AA[3*0+0] = A[3*0+0]*A[3*0+0] + A[3*1+0]*A[3*1+0] + A[3*2+0]*A[3*2+0];
 	AA[3*1+0] = A[3*0+0]*A[3*0+1] + A[3*1+0]*A[3*1+1] + A[3*2+0]*A[3*2+1];
 	AA[3*2+0] = A[3*0+0]*A[3*0+2] + A[3*1+0]*A[3*1+2] + A[3*2+0]*A[3*2+2];
@@ -250,7 +250,7 @@ static inline void aat3(double * restrict AA, const double * restrict A) {
 	AA[3*2+2] = A[3*0+2]*A[3*0+2] + A[3*1+2]*A[3*1+2] + A[3*2+2]*A[3*2+2];
 }
 
-static inline void trans3(double * restrict A) {
+static inline void trans3(double *  A) {
 	double tmp;
 
 	tmp = A[3*1+0];

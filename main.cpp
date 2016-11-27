@@ -16,6 +16,8 @@
 
 /* data structures */
 #include "structures.h"
+
+/* tangent plane computation */
 #include "tangentPlane.h"
 
 /* parseFile takes a filename as input, tests it as an obj, and grabs all of its vertices

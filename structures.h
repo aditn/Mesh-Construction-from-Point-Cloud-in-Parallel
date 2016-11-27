@@ -1,4 +1,5 @@
 #include <cmath>
+#include <stdio.h>
 #define MAX_LINE_SIZE 1024 //our max line size for obj file
 
 struct V3{
@@ -31,20 +32,20 @@ struct V3{
   }
 };
 
-typedef struct{
+struct Plane{
   V3 center, normal;
-} Plane;
+};
 
 struct mat{
   short row, col;
-  double* matrix;
+  double** matrix;
   mat(){
     this->row=0;
     this->col=0;
   }
-  mat(int row, int col, int pointerToMat){
+  mat(int row, int col, double** pointerToMat){
     this->row = row;
     this->col = col;
     this->matrix = pointerToMat;
   }
-}
+};
