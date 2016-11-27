@@ -36,6 +36,11 @@ struct Plane{
   V3 center, normal;
 };
 
+struct PlaneGraph{
+  *Plane currentPlane;
+  *Plane prev, next1, next2;
+}
+
 struct mat{
   short row, col;
   double** matrix;

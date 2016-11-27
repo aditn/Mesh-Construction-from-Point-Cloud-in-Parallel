@@ -91,26 +91,3 @@ Plane* computeTangentPlanes(V3* points, int numPoints, float ro, float delta){
   }
   return planes;
 }
-
-
-/**************************************
- * Consistent Tangent Plane Orientation
- **************************************/
-
-/*Plane* getNeighborPlanesWithCost(Plane* allTangentPlanes, int currentPlaneIndex, float ro, float delta){
-  int numPlanes;
-  Plane currentPlane = allTangentPlanes[currentPlaneIndex];
-  V3 currentCentroid = currentPlane.center;
-  std::vector<PlaneGraph> neighborPlanes;
-
-  int j = 0;
-  for (int i=0; i<numPlanes; i++){
-    Plane possibleNeighbor = allTangentPlanes[i];
-    if (currentCentroid.dist(possibleNeighbor.center) <= (delta+ro)){
-      // add to Neighbor Planes if centroids are too close
-      neighborPlanes.push_back(possibleNeighbor);
-    }
-  }
-
-  return neighborPlanes;
-}*/
