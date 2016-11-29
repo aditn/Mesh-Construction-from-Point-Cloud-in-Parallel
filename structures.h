@@ -19,6 +19,11 @@ struct V3{
     this->y+=v.y;
     this->z+=v.z;
   }
+  void sub(V3 v){
+    this->x-=v.x;
+    this->y-=v.y;
+    this->z-=v.z;
+  }
   float dot(V3 v){
     return this->x*v.x+this->y*v.y+this->z*v.z;
   }
@@ -55,19 +60,11 @@ inline V3 operator+(const V3& a, const V3& b){
     out.z = a.z+b.z;
     return out;
 }
-inline V3 operator-=(const V3& a, const V3& b){
-    V3 out;
-    out.x = a.x-b.x;
-    out.y = a.y-b.y;
-    out.z = a.z-b.z;
-    return out;
+inline void operator-=(V3& a, const V3 b){
+    a.sub(b);
 }
-inline V3 operator+=(const V3& a, const V3& b){
-    V3 out;
-    out.x = a.x+b.x;
-    out.y = a.y+b.y;
-    out.z = a.z+b.z;
-    return out;
+inline void operator+=(V3& a, const V3 b){
+    a.add(b);
 }
 inline V3 operator*(const V3& a,const float& b){
   V3 out = V3(a);
@@ -148,3 +145,7 @@ struct E{
     this->v2=v2;
   }
 };
+
+inline void printPoint(V3 p){
+  printf("(%.3f,%.3f,%.3f)\n",p.x,p.y,p.z);
+}

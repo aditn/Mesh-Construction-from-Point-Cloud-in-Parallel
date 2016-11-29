@@ -8,9 +8,10 @@
 #include <vector>
 #include <algorithm> //for vector sorting
 
-/* needed for malloc and printf and scanf and what not */
+/* needed for malloc and printf, scanf, cmd line args and what not */
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 /* sqrt and square */
 #include <cmath>
@@ -22,6 +23,9 @@
 #define TINYNUM 0.00000001
 #define fABS(x) ((x<0)? -x : x)
 #define fEQ(x,y) (fABS(x-y)<TINYNUM)
+
+#define rho 0.4
+#define delta 0.6
 
 /* parseFile takes a filename as input, tests it as an obj, and grabs all of its vertices
  * It returns of Point vector of these vertices
@@ -38,7 +42,6 @@ std::vector<V3> parseFile(const char* filename){
     while(fin.getline(line,MAX_LINE_SIZE)){
       float x,y,z;
       sscanf(line,"%s %f %f %f",line_type,&x,&y,&z);
-      printf("line of type %s is (%.3f,%.3f,%.3f)\n",line_type,x,y,z);
       if(line_type[0]=='v'){ //vertex
         V3 p;
         p.x=x;p.y=y;p.z=z;
@@ -57,7 +60,7 @@ void saveMesh(std::vector<V3> points, std::vector<E> edges, char* out_filename){
     printf("couldn't write to %s\n",out_filename);
     exit(0);
   }else{
-    for(int i=0;i<points.size();i++){
+    for(unsigned int i=0;i<points.size();i++){
       float x,y,z;
       x=points[i].x;
       y=points[i].y;
@@ -65,7 +68,7 @@ void saveMesh(std::vector<V3> points, std::vector<E> edges, char* out_filename){
       fout << "v " << x << " " << y << " " << z << "\n";
     }
     
-    for(int i=0;i<edges.size();i++){
+    for(unsigned int i=0;i<edges.size();i++){
       int v1,v2;
       v1=edges[i].v1;
       v2=edges[i].v2;
@@ -75,30 +78,38 @@ void saveMesh(std::vector<V3> points, std::vector<E> edges, char* out_filename){
   fout.close();
 }
 
-inline void printPoint(V3 p){
-  printf("(%.3f,%.3f,%.3f)\n",p.x,p.y,p.z);
-}
-
-int main(){
+int main(int argc, char* argv[]){
   //for now we can read/write from obj file to keep things simple
   //until we decide how we're actually gonna grab kinect stuff
 
+  char* in_filename = NULL;
+  int opt;
+  while((opt = getopt(argc,argv,"f:")) != -1){
+    switch(opt){
+      case 'f':
+        in_filename = optarg;
+        break;
+      default:
+        fprintf(stderr,"Error. Usage is <exec> -f <filename>\n");
+        return 1;
+    }
+  }
+
   //step 1: parse input file/stream
-  const char* in_filename = INPUT_FILE;
   std::vector<V3> vertices = parseFile(in_filename);
   int numPoints = vertices.size();
   V3* points = (V3*) malloc(sizeof(V3)*numPoints);
   bbox system;
   for(int i=0;i<numPoints;i++){
     points[i] = vertices[i];
-    printPoint(points[i]);
+    //printPoint(points[i]);
     system.expand(points[i]);
   }
   system.print();
   //step 2: create mesh in parallel
   //step 2a: get neighborhood for each point
   //step 2b: get centroid & PCA normals based off of neighborhoods
-  Plane* planes = computeTangentPlanes(points,numPoints,0.6,0.5);
+  Plane* planes = computeTangentPlanes(points,numPoints,rho,delta);
   /*for(int i=0;i<numPoints;i++){
     printf("Plane %d: \n\t",i);
     printPoint(planes[i].center);
@@ -109,15 +120,18 @@ int main(){
 
   //step 2e: Approximate mesh based on differences between cubes
   V3 universeSize = system.max-system.min;
-  float sideLength = 0.5; //cube side length
+  float sideLength = rho+delta; //cube side length
   //modify system size to fit int num of cubes in each dir
-  int widthDif = universeSize.x-std::ceil(universeSize.x/sideLength)*sideLength,
-     heightDif = universeSize.y-std::ceil(universeSize.y/sideLength)*sideLength,
-      depthDif = universeSize.z-std::ceil(universeSize.z/sideLength)*sideLength;
-  V3 addon = V3(widthDif,heightDif,depthDif);
+  printPoint(universeSize);
+  float widthDif = universeSize.x-int(std::ceil(universeSize.x/sideLength))*sideLength,
+     heightDif = universeSize.y-int(std::ceil(universeSize.y/sideLength))*sideLength,
+      depthDif = universeSize.z-int(std::ceil(universeSize.z/sideLength))*sideLength;
+  V3 addon = V3(-widthDif,-heightDif,-depthDif);
+  printPoint(addon);
   addon.scale(0.5); // add evenly to min and max
   system.max += addon;
   system.min -= addon;
+  system.print();
   V3 numCubes = system.max-system.min;
   numCubes.scale(1.0/sideLength);
   if(numCubes.x==0)numCubes.x++;
@@ -136,7 +150,7 @@ int main(){
       for(int k=0;k<numCubes.z;k++){
         bbox cube = bbox(system.min+V3(i*sideLength,j*sideLength,k*sideLength),sideLength,sideLength,sideLength);
         cubes[i][j][k] = cube;
-        printf("cube %d,%d,%d is:\n",i,j,k);cubes[i][j][k].print();
+        //printf("cube %d,%d,%d is:\n",i,j,k);cubes[i][j][k].print();
         V3 blb,blf,brb,brf,tlb,tlf,trb,trf; //[top/bottom][left/right][front/back] values at each corner
         float blbv,blfv,brbv,brfv,tlbv,tlfv,trbv,trfv; //actual vals at point
         blb=cube.min;
@@ -253,31 +267,27 @@ int main(){
   //get rid of duplicate vertices
   int numNewVerts = newvertices.size();
   
-  std::vector<int> queue;
+  std::vector<V3> finalVertices;
   for(int i=0;i<numNewVerts;i++){
     V3 v1 = newvertices[i];
-    for(int j=i+1;j<numNewVerts;j++){
+    bool unique = true;
+    for(unsigned int j=0;j<finalVertices.size();j++){
       V3 v2 = newvertices[j];
-      if(!std::isnan(v1.x) && fEQ(v1.x,v2.x) && fEQ(v1.y,v2.y) && fEQ(v1.z,v2.z)){queue.push_back(j);newvertices[j] = V3(NAN,NAN,NAN);}
+      if(fEQ(v1.x,v2.x) && fEQ(v1.y,v2.y) && fEQ(v1.z,v2.z)) unique = false;
     }
-  }
-  std::sort(queue.begin(),queue.end());
-  int offset=0;
-  while(!queue.empty()){
-    newvertices.erase(newvertices.begin()+queue[0]+(offset++));
-    queue.erase(queue.begin());
+    if(unique) finalVertices.push_back(v1);
   }
 
   //go from edges as two vertices to edges as two indices to vertices
   std::vector<E> compressed_edges;
-  for(int i=0;i<edges.size();i++){
+  for(unsigned int i=0;i<edges.size();i++){
     V3 v1=edges[i].v1,
        v2=edges[i].v2;
     int v1x=-1,
         v2x=-1;
-    for(int j=0;j<newvertices.size();j++){
-      if(v1x<0 && fEQ(newvertices[j].x,v1.x) && fEQ(newvertices[j].y,v1.y) && fEQ(newvertices[j].z,v1.z)) v1x=j;
-      if(v2x<0 && fEQ(newvertices[j].x,v2.x) && fEQ(newvertices[j].y,v2.y) && fEQ(newvertices[j].z,v2.z)) v2x=j;
+    for(unsigned int j=0;j<finalVertices.size();j++){
+      if(v1x<0 && fEQ(finalVertices[j].x,v1.x) && fEQ(finalVertices[j].y,v1.y) && fEQ(finalVertices[j].z,v1.z)) v1x=j;
+      if(v2x<0 && fEQ(finalVertices[j].x,v2.x) && fEQ(finalVertices[j].y,v2.y) && fEQ(finalVertices[j].z,v2.z)) v2x=j;
       if(v1x>=0 && v2x>=0) break;
     }
     compressed_edges.push_back(E(v1x,v2x));
@@ -296,6 +306,6 @@ int main(){
   for(int i=2;i<slen-5;i++) out_filename[i+1]=in_filename[i];
   for(int i=0;i<9;i++) out_filename[slen-4+i]="_out.obj"[i]; //9 includes null terminator
   printf("saving to %s\n",out_filename);
-  saveMesh(newvertices,compressed_edges,out_filename);
+  saveMesh(finalVertices,compressed_edges,out_filename);
   return 0;
 }
