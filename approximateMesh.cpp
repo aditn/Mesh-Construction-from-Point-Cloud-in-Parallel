@@ -18,7 +18,8 @@ void approximateMesh(V3* points, int numPoints, float rho, float delta,std::vect
   Plane* planes = computeTangentPlanes(points,numPoints,rho,delta);
 
   //step 2: propogate normal directions of every plane
-  
+  //TODO: this.  
+
   //step 3: create a bounding box of the universe and split it into cubes
   bbox system;
   for(int i=0;i<numPoints;i++) system.expand(points[i]);
@@ -28,10 +29,10 @@ void approximateMesh(V3* points, int numPoints, float rho, float delta,std::vect
   float sideLength = rho+delta; //cube side length
   //modify system size to fit int num of cubes in each dir
   printPoint(universeSize);
-  float widthDif = universeSize.x-int(std::ceil(universeSize.x/sideLength))*sideLength,
-     heightDif = universeSize.y-int(std::ceil(universeSize.y/sideLength))*sideLength,
-      depthDif = universeSize.z-int(std::ceil(universeSize.z/sideLength))*sideLength;
-  V3 addon = V3(-widthDif,-heightDif,-depthDif);
+  float widthDif = int(std::ceil(universeSize.x/sideLength))*sideLength-universeSize.x,
+       heightDif = int(std::ceil(universeSize.y/sideLength))*sideLength-universeSize.y,
+        depthDif = int(std::ceil(universeSize.z/sideLength))*sideLength-universeSize.z;
+  V3 addon = V3(widthDif,heightDif,depthDif);
   printPoint(addon);
   addon.scale(0.5); // add evenly to min and max
   system.max += addon;
@@ -45,7 +46,7 @@ void approximateMesh(V3* points, int numPoints, float rho, float delta,std::vect
   printf("Num cubes in each dir is:\n");
   printPoint(numCubes);
 
-  //step 2e: Approximate mesh based on differences between cubes
+  //step 4: Approximate mesh based on differences between cubes
   bbox*** cubes = (bbox***) malloc(numCubes.x*sizeof(bbox**));
   std::vector<V3> newvertices;
   std::vector<E> edges;
