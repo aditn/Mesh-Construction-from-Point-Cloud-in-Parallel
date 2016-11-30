@@ -1,6 +1,7 @@
 #include <cmath>
 #include <stdio.h>
 #define MAX_LINE_SIZE 1024 //our max line size for obj file
+#define TINYNUM 0.000001
 
 struct V3{
   float x,y,z;
@@ -46,14 +47,14 @@ struct V3{
     printf("(%.3f,%.3f,%.3f)\n",this->x,this->y,this->z);
   }
 };
-inline V3 operator-(const V3& a, const V3& b){
+inline V3 operator-(const V3 a, const V3 b){
     V3 out;
     out.x = a.x-b.x;
     out.y = a.y-b.y;
     out.z = a.z-b.z;
     return out;
 }
-inline V3 operator+(const V3& a, const V3& b){
+inline V3 operator+(const V3 a, const V3 b){
     V3 out;
     out.x = a.x+b.x;
     out.y = a.y+b.y;
@@ -66,15 +67,19 @@ inline void operator-=(V3& a, const V3 b){
 inline void operator+=(V3& a, const V3 b){
     a.add(b);
 }
-inline V3 operator*(const V3& a,const float& b){
+inline V3 operator*(const V3 a,const float b){
   V3 out = V3(a);
   out.scale(b);
   return out;
 }
-inline V3 operator*(const float& b,const V3& a){
+inline V3 operator*(const float b,const V3 a){
   V3 out = V3(a);
   out.scale(b);
   return out;
+}
+
+inline bool operator==(const V3 a, const V3 b){
+  return ((fabs(a.x-b.x)<TINYNUM) && (fabs(a.y-b.y)<TINYNUM)) && (fabs(a.z-b.z)<TINYNUM);
 }
 
 struct bbox{
@@ -122,25 +127,25 @@ struct Plane{
   V3 center, normal;
 };
 
-struct Edge{
+struct E{
   V3 v1,v2;
-  Edge(){
+  E(){
   this->v1 = V3();
   this->v2 = V3();
   }
-  Edge(V3 v1,V3 v2){
+  E(V3 v1,V3 v2){
     this->v1 = V3(v1);
     this->v2 = V3(v2);
   }
 };
 
-struct E{
+struct Edge{
   int v1,v2;
-  E(){
+  Edge(){
     this->v1=0;
     this->v2=0;
   }
-  E(int v1,int v2){
+  Edge(int v1,int v2){
     this->v1=v1;
     this->v2=v2;
   }
