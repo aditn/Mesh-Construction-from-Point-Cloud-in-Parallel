@@ -43,6 +43,12 @@ struct V3{
     out.z = this->x*v.y-this->y*v.x;
     return out;
   }
+  V3 unit(){
+    float mag = std::pow(this->dot(*this),0.5);
+    V3 retval = V3(*this);
+    retval.scale(1.0f/mag);
+    return retval;
+  }
   void print(){
     printf("(%.3f,%.3f,%.3f)\n",this->x,this->y,this->z);
   }
@@ -76,6 +82,9 @@ inline V3 operator*(const float b,const V3 a){
   V3 out = V3(a);
   out.scale(b);
   return out;
+}
+inline void operator*=(V3& a,const float b){
+  a.scale(b);
 }
 
 inline bool operator==(const V3 a, const V3 b){
@@ -141,14 +150,25 @@ struct E{
 
 struct Edge{
   int v1,v2;
+  float weight;
   Edge(){
     this->v1=0;
     this->v2=0;
+    this->weight=0;
   }
   Edge(int v1,int v2){
     this->v1=v1;
     this->v2=v2;
+    this->weight=0;
   }
+  Edge(int v1,int v2,float w){
+    this->v1=v1;
+    this->v2=v2;
+    this->weight=w;
+  }
+  bool operator< (const Edge e) const{
+   return (this->weight)<(e.weight);
+ }
 };
 
 inline void printPoint(V3 p){

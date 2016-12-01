@@ -25,7 +25,7 @@ Plane getTangentPlane(vector<V3> neighbors){
   if(numNeighbors>=3){
     V3 v1 = neighbors[1]-neighbors[0];
     V3 v2 = neighbors[2]-neighbors[0];
-    tangentPlane.normal = v1.cross(v2);
+    tangentPlane.normal = v1.cross(v2).unit();
   }
 
   return tangentPlane;

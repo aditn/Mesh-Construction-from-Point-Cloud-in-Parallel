@@ -4,6 +4,7 @@
 
 /* needed for vectors */
 #include <vector>
+#include <algorithm> //for sorting vectors
 
 /* fabs, square, sqrt */
 #include <cmath>
@@ -13,14 +14,122 @@
 #include "tangentPlane.h"
 #include "approximateMesh.h"
 
+#define K 5 //num neighbors for MST Propogation
+
+inline void insMin(int* idxs, float* vals, int N, int newIdx, float newVal){
+  int curIdx = N-1;
+
+  if(vals[curIdx]>newVal){
+    vals[curIdx] = newVal;
+    idxs[curIdx] = newIdx;
+    curIdx--;
+  }else return;
+
+  while(curIdx>=0 && vals[curIdx]>newVal){
+    vals[curIdx+1] = vals[curIdx];
+    idxs[curIdx+1] = idxs[curIdx];
+    vals[curIdx] = newVal;
+    idxs[curIdx] = newIdx;
+    curIdx--;
+  }
+}
+
+std::vector<int> getNearest(V3* points, int numPoints, int idx, int numNeighbors){
+  std::vector<int> neighbors;
+  if(numPoints<=numNeighbors){
+    for(int i=0;i<numPoints;i++) neighbors.push_back(i);
+    return neighbors;
+  }else{
+    int* nearestIdxs = (int*) malloc(sizeof(int)*numNeighbors);
+    float* nearestVals = (float*) malloc(sizeof(float)*numNeighbors);
+    for(int i=0;i<numNeighbors;i++) nearestVals[i] = INFINITY;
+
+    V3 curPoint = points[idx];
+    for(int i=0;i<numPoints;i++){
+      if(i==idx) continue;
+      insMin(nearestIdxs,nearestVals,numNeighbors,i,curPoint.dist(points[i]));
+    }
+    for(int i=0;i<numNeighbors;i++) neighbors.push_back(nearestIdxs[i]);
+    free(nearestIdxs);
+    free(nearestVals);
+    return neighbors;
+  }
+}
+
 void approximateMesh(V3* points, int numPoints, float rho, float delta,std::vector<V3>& finalVertices,std::vector<Edge>& finalEdges){
   //step 1: create a plane for each point based off of its neighbors
+  printf("getting planes...\n");
   Plane* planes = computeTangentPlanes(points,numPoints,rho,delta);
 
   //step 2: propogate normal directions of every plane
-  //TODO: this.  
+  //substep: find plane centroid with largest z coordinate
+  printf("getting max z...\n");
+  int curmax = 0;
+  int curidx = -1;
+  for(int i=0;i<numPoints;i++){
+    if(curidx==-1 || planes[i].center.z>curmax){
+      curmax = planes[i].center.z;
+      curidx = i;
+    }
+  }
+  planes[curidx].normal = V3(0,0,(curmax>=0)? -1: 1); //TODO: why?
+
+  //substep: create graph of neighbors with edge weights
+  printf("getting neighbor graph...\n");
+  std::vector<Edge> neighbor_edges;
+  for(int i=0;i<numPoints;i++){
+    std::vector<int> neighbors = getNearest(points,numPoints,i,K);
+    for(unsigned int j=0;j<neighbors.size();j++){
+      int idx = neighbors[j];
+      neighbor_edges.push_back(Edge(i,idx,1-fabs(planes[i].normal.dot(planes[idx].normal))));
+    }
+  }
+  std::sort(neighbor_edges.begin(),neighbor_edges.end()); //sort min to max
+
+  //substep: create MST rooted at prev idx
+  printf("setting up mst...\n");
+  std::vector<Edge> mst_edges;
+  bool* seen_mask = (bool*) calloc(numPoints,sizeof(bool));
+  for(unsigned int i=0;i<neighbor_edges.size();i++){ //going from min to max
+    Edge curedge = neighbor_edges[i];
+    if(!seen_mask[curedge.v1] || !seen_mask[curedge.v2]){ //insert if no cycle
+      mst_edges.push_back(curedge);
+      seen_mask[curedge.v1] = true;
+      seen_mask[curedge.v2] = true;
+    }
+  }
+
+  //substep: create adjacency list for faster lookup
+  printf("making adjacency list...\n");
+  std::vector< std::vector<int> > adj(numPoints,std::vector<int>(0));
+  for(unsigned int i=0;i<mst_edges.size();i++){
+    Edge e = mst_edges[i];
+    adj[e.v1].push_back(e.v2);
+    adj[e.v2].push_back(e.v1);
+  }
+  
+  //substep: use DFS from curIdx on mst to propogate normal directions
+  printf("traversing mst to propagate normals...\n");
+  for(int i=0;i<numPoints;i++) seen_mask[i] = false;
+  std::vector<int> queue;
+  queue.push_back(curidx);
+  
+  while(!queue.empty()){
+    curidx = queue.back();
+    queue.pop_back();
+    seen_mask[curidx] = true; //processed
+    for(unsigned int i=0;i<adj[curidx].size();i++){
+      int nextidx = adj[curidx][i];
+      if(!seen_mask[nextidx]){
+        if(planes[curidx].normal.dot(planes[nextidx].normal)<0) planes[nextidx].normal*= -1.f; //flip dir
+        queue.push_back(nextidx);
+      }
+    }
+  }
+  free(seen_mask);
 
   //step 3: create a bounding box of the universe and split it into cubes
+  printf("Approximating mesh now!\n");
   bbox system;
   for(int i=0;i<numPoints;i++) system.expand(points[i]);
   system.print();
@@ -105,7 +214,7 @@ void approximateMesh(V3* points, int numPoints, float rho, float delta,std::vect
               break;
           }
 
-          if((v[0]<=0)==(v[1]<=0)==(v[2]<=0)==(v[3]<=0)) continue; //4 match
+          if(((v[0]<=0)==(v[1]<=0)) && ((v[1]<=0)==(v[2]<=0)) && ((v[2]<=0)==(v[3]<=0))) continue; //4 match
           else if(((v[0]<=0)==(v[1]<=0) && (v[1]<=0)==(v[2]<=0)) ||
                   ((v[0]<=0)==(v[1]<=0) && (v[1]<=0)==(v[3]<=0)) ||
                   ((v[0]<=0)==(v[2]<=0) && (v[2]<=0)==(v[3]<=0)) ||
@@ -170,6 +279,7 @@ void approximateMesh(V3* points, int numPoints, float rho, float delta,std::vect
       }
     }
   }
+  free(planes);
 
   //get rid of duplicate vertices
   for(unsigned int i=0;i<newvertices.size();i++){

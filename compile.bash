@@ -1,2 +1,2 @@
 #!/bin/bash
-g++ *.cpp -o runnable
+g++ -Wall *.cpp -o runnable

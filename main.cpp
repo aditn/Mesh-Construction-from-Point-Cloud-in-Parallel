@@ -14,8 +14,8 @@
 #include "structures.h"
 #include "approximateMesh.h"
 
-#define rho 0.4
-#define delta 0.6
+#define rho 0.4 //given rho radius sphere, at least one point?
+#define delta 0.6 //noise
 
 std::vector<V3> parseFile(const char* filename){
   std::vector<V3> points;
