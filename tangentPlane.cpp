@@ -78,7 +78,6 @@ float getDist(Vector3f p, Plane* planes, int numPlanes){
       closestIdx = i;
     }
   }
-
   //then approximate dist to surface
   return (p-planes[closestIdx].center).dot(planes[closestIdx].normal); 
 }

@@ -5,6 +5,7 @@
 
 #include <stdio.h>
 #define MAX_LINE_SIZE 1024 //our max line size for obj file
+#define TINYNUM 0.000001
 
 struct V3{
   float x,y,z;
@@ -22,6 +23,11 @@ struct V3{
     this->x+=v.x;
     this->y+=v.y;
     this->z+=v.z;
+  }
+  void sub(V3 v){
+    this->x-=v.x;
+    this->y-=v.y;
+    this->z-=v.z;
   }
   float dot(V3 v){
     return this->x*v.x+this->y*v.y+this->z*v.z;
@@ -41,87 +47,92 @@ struct V3{
     out.z = this->x*v.y-this->y*v.x;
     return out;
   }
+  V3 unit(){
+    float mag = std::pow(this->dot(*this),0.5);
+    V3 retval = V3(*this);
+    retval.scale(1.0f/mag);
+    return retval;
+  }
   void print(){
     printf("(%.3f,%.3f,%.3f)\n",this->x,this->y,this->z);
   }
 };
-inline V3 operator-(const V3& a, const V3& b){
-    V3 out;
-    out.x = a.x-b.x;
-    out.y = a.y-b.y;
-    out.z = a.z-b.z;
-    return out;
+inline V3 operator-(const V3 a, const V3 b){
+  V3 out;
+  out.x = a.x-b.x;
+  out.y = a.y-b.y;
+  out.z = a.z-b.z;
+  return out;
 }
-inline V3 operator+(const V3& a, const V3& b){
+inline V3 operator+(const V3 a, const V3 b){
     V3 out;
     out.x = a.x+b.x;
     out.y = a.y+b.y;
     out.z = a.z+b.z;
     return out;
 }
-inline V3 operator-=(const V3& a, const V3& b){
-    V3 out;
-    out.x = a.x-b.x;
-    out.y = a.y-b.y;
-    out.z = a.z-b.z;
-    return out;
+inline void operator-=(V3& a, const V3 b){
+    a.sub(b);
 }
-inline V3 operator+=(const V3& a, const V3& b){
-    V3 out;
-    out.x = a.x+b.x;
-    out.y = a.y+b.y;
-    out.z = a.z+b.z;
-    return out;
+inline void operator+=(V3& a, const V3 b){
+    a.add(b);
 }
-inline V3 operator*(const V3& a,const float& b){
+inline V3 operator*(const V3 a,const float b){
   V3 out = V3(a);
   out.scale(b);
   return out;
 }
-inline V3 operator*(const float& b,const V3& a){
+inline V3 operator*(const float b,const V3 a){
   V3 out = V3(a);
   out.scale(b);
   return out;
+}
+inline void operator*=(V3& a,const float b){
+  a.scale(b);
+}
+
+inline bool operator==(const V3 a, const V3 b){
+  return ((fabs(a.x-b.x)<TINYNUM) && (fabs(a.y-b.y)<TINYNUM)) && (fabs(a.z-b.z)<TINYNUM);
 }
 
 struct bbox{
-  V3 min,max;
+  Eigen::Vector3f min,max;
   bbox(){
-    this->min = V3();
-    this->max = V3();
+    this->min(0.f,0.f,0.f);
+    this->max(0.f,0.f,0.f);
   }
-  bbox(V3 p1, V3 p2){
-    this->min = V3(std::min(p1.x,p2.x),std::min(p1.y,p2.y),std::min(p1.z,p2.z));
-    this->max = V3(std::max(p1.x,p2.x),std::max(p1.y,p2.y),std::max(p1.z,p2.z));
+  bbox(Eigen::Vector3f p1, Eigen::Vector3f p2){
+    this->min = Eigen::Vector3f(std::min(p1(0),p2(0)),std::min(p1(1),p2(1)),std::min(p1(2),p2(2)));
+    this->max = Eigen::Vector3f(std::max(p1(0),p2(0)),std::max(p1(1),p2(1)),std::max(p1(2),p2(2)));
   }
-  bbox(V3 min,float width,float height,float depth){
-    this->min=V3(min);
-    this->max=min+V3(width,height,depth);
+  bbox(Eigen::Vector3f min,float width,float height,float depth){
+    this->min=min;
+    this->max=min+Eigen::Vector3f(width,height,depth);
   }
 
   /** update bbox to include a point */
   void expand(Eigen::Vector3f p){
-    if(p(0)<this->min.x){
-      this->min.x = p.x;
-    }else if(p.x>this->max.x){
-      this->max.x = p.x;
+    if(p(0)<this->min(0)){
+      this->min(0) = p(0);
+    }else if(p(0)>this->max(0)){
+      this->max(0) = p(0);
     }
 
-    if(p(1)<this->min.y){
-      this->min.y = p.y;
-    }else if(p.y>this->max.y){
-      this->max.y = p.y;
+    if(p(1)<this->min(1)){
+      this->min(1) = p(1);
+    }else if(p(1)>this->max(1)){
+      this->max(1) = p(1);
     }
 
-    if(p(2)<this->min.z){
-      this->min.z = p.z;
-    }else if(p.z>this->max.z){
-      this->max.z = p.z;
+    if(p(2)<this->min(2)){
+      this->min(2) = p(2);
+    }else if(p(2)>this->max(2)){
+      this->max(2) = p(2);
     }
   }
 
   void print(){
-    printf("bbox is (%.3f,%.3f,%.3f)<->(%.3f,%.3f,%.3f)\n",this->min.x,this->min.y,this->min.z,this->max.x,this->max.y,this->max.z);
+    printf("bbox is (%.3f,%.3f,%.3f)<->(%.3f,%.3f,%.3f)\n",this->min(0),this->min(1),this->min(2),this->max(0),this->max(1),this->max(2));
   }
 };
 
@@ -129,26 +140,41 @@ struct Plane{
   Vector3f center, normal;
 };
 
-struct Edge{
-  V3 v1,v2;
-  Edge(){
-  this->v1 = V3();
-  this->v2 = V3();
+struct E{
+  Eigen::Vector3f v1,v2;
+  E(){
+  this->v1(0.f,0.f,0.f);
+  this->v2(0.f,0.f,0.f);
   }
-  Edge(V3 v1,V3 v2){
-    this->v1 = V3(v1);
-    this->v2 = V3(v2);
+  E(Eigen::Vector3f v1,Eigen::Vector3f v2){
+    this->v1 = v1;
+    this->v2 = v2;
   }
 };
 
-struct E{
+struct Edge{
   int v1,v2;
-  E(){
+  float weight;
+  Edge(){
     this->v1=0;
     this->v2=0;
+    this->weight=0;
   }
-  E(int v1,int v2){
+  Edge(int v1,int v2){
     this->v1=v1;
     this->v2=v2;
+    this->weight=0;
   }
+  Edge(int v1,int v2,float w){
+    this->v1=v1;
+    this->v2=v2;
+    this->weight=w;
+  }
+  bool operator< (const Edge e) const{
+   return (this->weight)<(e.weight);
+ }
 };
+
+inline void printPoint(Eigen::Vector3f p){
+  printf("(%.3f,%.3f,%.3f)\n",p.x,p.y,p.z);
+}
