@@ -19,15 +19,20 @@
 #include "structures.h"
 #include "tangentPlane.h"
 
+/* linear algebra library */
+#include <util/eigen-eigen-26667be4f70b/Eigen/Dense>
+
 #define TINYNUM 0.00000001
 #define fABS(x) ((x<0)? -x : x)
 #define fEQ(x,y) (fABS(x-y)<TINYNUM)
 
+using Eigen::MatrixXd
+
 /* parseFile takes a filename as input, tests it as an obj, and grabs all of its vertices
  * It returns of Point vector of these vertices
  * An error will be thrown if file cannot be read */
-std::vector<V3> parseFile(const char* filename){
-  std::vector<V3> points;
+std::vector<Vector3f> parseFile(const char* filename){
+  std::vector<Vector3f> points;//std::vector<V3> points;
   std::ifstream fin;
   fin.open(filename);
   if(!fin.good()){
@@ -40,8 +45,7 @@ std::vector<V3> parseFile(const char* filename){
       sscanf(line,"%s %f %f %f",line_type,&x,&y,&z);
       printf("line of type %s is (%.3f,%.3f,%.3f)\n",line_type,x,y,z);
       if(line_type[0]=='v'){ //vertex
-        V3 p;
-        p.x=x;p.y=y;p.z=z;
+        Vector3f p(x,y,z);
         points.push_back(p);
       }else printf("couldn't recognize type %s\n",line_type);
     }
@@ -50,7 +54,7 @@ std::vector<V3> parseFile(const char* filename){
   return points;
 }
 
-void saveMesh(std::vector<V3> points, std::vector<E> edges, char* out_filename){
+void saveMesh(std::vector<Vector3f> points, std::vector<E> edges, char* out_filename){
   std::ofstream fout;
   fout.open(out_filename);
   if(!fout.good()){
@@ -59,9 +63,12 @@ void saveMesh(std::vector<V3> points, std::vector<E> edges, char* out_filename){
   }else{
     for(int i=0;i<points.size();i++){
       float x,y,z;
-      x=points[i].x;
-      y=points[i].y;
-      z=points[i].z;
+      x=points[i](0);
+      y=points[i](1);
+      z=points[i](2);
+      //x=points[i].x;
+      //y=points[i].y;
+      //z=points[i].z;
       fout << "v " << x << " " << y << " " << z << "\n";
     }
     
@@ -75,8 +82,8 @@ void saveMesh(std::vector<V3> points, std::vector<E> edges, char* out_filename){
   fout.close();
 }
 
-inline void printPoint(V3 p){
-  printf("(%.3f,%.3f,%.3f)\n",p.x,p.y,p.z);
+inline void printPoint(Vector3f p){
+  printf("(%.3f,%.3f,%.3f)\n",p(0),p(1),p(2));
 }
 
 int main(){
@@ -85,9 +92,9 @@ int main(){
 
   //step 1: parse input file/stream
   const char* in_filename = INPUT_FILE;
-  std::vector<V3> vertices = parseFile(in_filename);
+  std::vector<Vector3f> vertices = parseFile(in_filename);
   int numPoints = vertices.size();
-  V3* points = (V3*) malloc(sizeof(V3)*numPoints);
+  Vector3f* points = (Vector3f*) malloc(sizeof(Vector3f)*numPoints);
   bbox system;
   for(int i=0;i<numPoints;i++){
     points[i] = vertices[i];
