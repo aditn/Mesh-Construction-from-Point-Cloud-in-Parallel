@@ -1,4 +1,8 @@
 #include <cmath>
+
+/* linear algebra library */
+#include <util/eigen-eigen-26667be4f70b/Eigen/Dense>
+
 #include <stdio.h>
 #define MAX_LINE_SIZE 1024 //our max line size for obj file
 
@@ -96,20 +100,20 @@ struct bbox{
   }
 
   /** update bbox to include a point */
-  void expand(V3 p){
-    if(p.x<this->min.x){
+  void expand(Eigen::Vector3f p){
+    if(p(0)<this->min.x){
       this->min.x = p.x;
     }else if(p.x>this->max.x){
       this->max.x = p.x;
     }
 
-    if(p.y<this->min.y){
+    if(p(1)<this->min.y){
       this->min.y = p.y;
     }else if(p.y>this->max.y){
       this->max.y = p.y;
     }
 
-    if(p.z<this->min.z){
+    if(p(2)<this->min.z){
       this->min.z = p.z;
     }else if(p.z>this->max.z){
       this->max.z = p.z;
@@ -122,7 +126,7 @@ struct bbox{
 };
 
 struct Plane{
-  V3 center, normal;
+  Vector3f center, normal;
 };
 
 struct Edge{
