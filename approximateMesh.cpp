@@ -12,9 +12,11 @@
 /* data structures */
 #include "structures.h"
 #include "tangentPlane.h"
+#include "parseOBJ.h"
 #include "approximateMesh.h"
 
 #define K 5 //num neighbors for MST Propogation
+extern bool DEBUG;
 
 inline void insMin(int* idxs, float* vals, int N, int newIdx, float newVal){
   int curIdx = N-1;
@@ -86,6 +88,12 @@ void approximateMesh(V3* points, int numPoints, float rho, float delta,std::vect
     }
   }
 
+  if(DEBUG){
+    printf("DEBUG MODE: saving neighbor mesh\n");
+    saveMesh(std::vector<V3>(newPoints,newPoints+numPoints),neighbor_edges,"DEBUG_neighbors.obj");
+    printf("DEBUG MODE: done.\n");
+  }
+
   std::sort(neighbor_edges.begin(),neighbor_edges.end()); //sort min to max weight
   //substep: create MST rooted at prev idx
   printf("setting up mst...\n");
@@ -98,11 +106,19 @@ void approximateMesh(V3* points, int numPoints, float rho, float delta,std::vect
     int f2 = pointForests[curedge.v2];
     if(f1!=f2){ //different forest
       mst_edges.push_back(curedge);
-      if(f1<f2) for(int i=0;i<numPoints;i++) if(pointForests[i]==f2) pointForests[i]=f1;
-      else      for(int i=0;i<numPoints;i++) if(pointForests[i]==f1) pointForests[i]=f2;
+      int minNum = (f1<f2)? f1 : f2;
+      for(int i=0;i<numPoints;i++){
+        if(pointForests[i]==f1 || pointForests[i]==f2) pointForests[i] = minNum;
+      }
     }
   }
   free(pointForests);
+  
+  if(DEBUG){
+    printf("DEBUG MODE: saving MST mesh\n");
+    saveMesh(std::vector<V3>(newPoints,newPoints+numPoints),mst_edges,"DEBUG_MST.obj");
+    printf("DEBUG MODE: done.\n");
+  }
 
   //substep: create adjacency list for faster lookup
   printf("making adjacency list...\n");
@@ -163,7 +179,7 @@ void approximateMesh(V3* points, int numPoints, float rho, float delta,std::vect
   //step 4: Approximate mesh based on differences between cubes
   bbox*** cubes = (bbox***) malloc(numCubes.x*sizeof(bbox**));
   std::vector<V3> newvertices;
-  std::vector<E> edges;
+  std::vector<Edge> edges;
   for(int i=0;i<numCubes.x;i++){
     cubes[i] = (bbox**) malloc(numCubes.y*sizeof(bbox*));
     for(int j=0;j<numCubes.y;j++){
@@ -236,7 +252,7 @@ void approximateMesh(V3* points, int numPoints, float rho, float delta,std::vect
               V3 newP2 = (pm*(1-frac2))+(pn*frac2);
               newvertices.push_back(newP1);
               newvertices.push_back(newP2);
-              edges.push_back(E(newP1,newP2));
+              edges.push_back(Edge(newvertices.size()-1,newvertices.size()-2));
             }
           }else{//two match
             if((v[0]<=0)==(v[1]<=0)){ //horiz line
@@ -246,7 +262,7 @@ void approximateMesh(V3* points, int numPoints, float rho, float delta,std::vect
               V3 newP2 = (p[1]*(1-frac2))+(p[2]*frac2);
               newvertices.push_back(newP1);
               newvertices.push_back(newP2);
-              edges.push_back(E(newP1,newP2));
+              edges.push_back(Edge(newvertices.size()-1,newvertices.size()-2));
             }else if((v[0]<=0)==(v[3]<=0)){ //vert line
               float frac1 = fabs(v[0])/(fabs(v[0])+fabs(v[1])),
                     frac2 = fabs(v[3])/(fabs(v[3])+fabs(v[2]));
@@ -254,7 +270,7 @@ void approximateMesh(V3* points, int numPoints, float rho, float delta,std::vect
               V3 newP2 = (p[3]*(1-frac2))+(p[2]*frac2);
               newvertices.push_back(newP1);
               newvertices.push_back(newP2);
-              edges.push_back(E(newP1,newP2));
+              edges.push_back(Edge(newvertices.size()-1,newvertices.size()-2));
             }else{ //double diagonal
               float frac1 = fabs(v[0])/(fabs(v[0])+fabs(v[1])),
                     frac2 = fabs(v[0])/(fabs(v[0])+fabs(v[3])),
@@ -273,11 +289,11 @@ void approximateMesh(V3* points, int numPoints, float rho, float delta,std::vect
               V3 pcent = 0.25*(newP1+newP2+newP3+newP4);
               float vcent = getDist(pcent,planes,numPoints);
               if((vcent<=0)==(v[0]<=0)){
-                edges.push_back(E(newP1,newP3));
-                edges.push_back(E(newP2,newP4));
+                edges.push_back(Edge(newvertices.size()-4,newvertices.size()-2));
+                edges.push_back(Edge(newvertices.size()-1,newvertices.size()-3));
               }else{
-                edges.push_back(E(newP1,newP2));
-                edges.push_back(E(newP3,newP4));
+                edges.push_back(Edge(newvertices.size()-3,newvertices.size()-4));
+                edges.push_back(Edge(newvertices.size()-1,newvertices.size()-2));
               }
             }
           }
@@ -288,30 +304,33 @@ void approximateMesh(V3* points, int numPoints, float rho, float delta,std::vect
   free(planes);
 
   //get rid of duplicate vertices
+  int* mapping = (int*) malloc(sizeof(int)*newvertices.size());
   for(unsigned int i=0;i<newvertices.size();i++){
     V3 v1 = newvertices[i];
     bool unique = true;
     for(unsigned int j=0;j<finalVertices.size();j++){
       if(v1==finalVertices[j]){
         unique = false;
+        mapping[i] = j;
         break;
       }
     }
-    if(unique) finalVertices.push_back(v1);
+    if(unique){
+      mapping[i] = finalVertices.size();
+      finalVertices.push_back(v1);
+    }
   }
   
-  //go from edges as two vertices to edges as two indices into vertex buffer
+  //map edges onto unique vertices, delete duplicate edges
+  bool** seenMat = (bool**) malloc(sizeof(bool*)*finalVertices.size());
+  for(unsigned int i=0;i<finalVertices.size(); i++) seenMat[i] = (bool*) calloc(finalVertices.size(),sizeof(bool));
+
   for(unsigned int i=0;i<edges.size();i++){
-    V3 v1=edges[i].v1,
-       v2=edges[i].v2;
-    int v1x=-1,
-        v2x=-1;
-    for(unsigned int j=0;j<finalVertices.size();j++){
-      if(v1x<0 && v1==finalVertices[j]) v1x=j;
-      if(v2x<0 && v2==finalVertices[j]) v2x=j;
-      if(v1x>=0 && v2x>=0) break;
+    int v1=mapping[edges[i].v1],
+        v2=mapping[edges[i].v2];
+    if(!seenMat[v1][v2]){
+      seenMat[v1][v2]=true;
+      finalEdges.push_back(Edge(v1,v2));
     }
-    if(v1x==-1 || v2x==-1) printf("Error. Something went wrong\n"); //couldn't find vertex in v buffer
-    finalEdges.push_back(Edge(v1x,v2x));
   }
 }

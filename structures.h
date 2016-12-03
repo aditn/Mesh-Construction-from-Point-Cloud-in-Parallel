@@ -1,6 +1,5 @@
 #include <cmath>
 #include <stdio.h>
-#define MAX_LINE_SIZE 1024 //our max line size for obj file
 #define TINYNUM 0.000001
 
 struct V3{
@@ -136,7 +135,7 @@ struct Plane{
   V3 center, normal;
 };
 
-struct E{
+/*struct E{
   V3 v1,v2;
   E(){
   this->v1 = V3();
@@ -146,7 +145,7 @@ struct E{
     this->v1 = V3(v1);
     this->v2 = V3(v2);
   }
-};
+};*/
 
 struct Edge{
   int v1,v2;

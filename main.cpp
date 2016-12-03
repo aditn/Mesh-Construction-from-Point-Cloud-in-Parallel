@@ -13,58 +13,23 @@
 /* our file dependencies */
 #include "structures.h"
 #include "approximateMesh.h"
+#include "parseOBJ.h"
 
 #define rho 0.4 //given rho radius sphere, at least one point?
 #define delta 0.6 //noise
-
-std::vector<V3> parseFile(const char* filename){
-  std::vector<V3> points;
-  std::ifstream fin;
-  fin.open(filename);
-  if(!fin.good()){
-    printf("Couldn't open input file!\n");
-    exit(0);
-  }else{
-    char line[MAX_LINE_SIZE],line_type[MAX_LINE_SIZE];
-    while(fin.getline(line,MAX_LINE_SIZE)){
-      float x,y,z;
-      sscanf(line,"%s %f %f %f",line_type,&x,&y,&z);
-      if(line_type[0]=='v') points.push_back(V3(x,y,z)); //vertices are points in point cloud
-      else printf("couldn't recognize type %s\n",line_type);
-    }
-  }
-  fin.close();
-  return points;
-}
-
-void saveMesh(std::vector<V3> V, std::vector<Edge> edges, char* out_filename){
-  std::ofstream fout;
-  fout.open(out_filename);
-  if(!fout.good()){
-    printf("couldn't write to %s\n",out_filename);
-    exit(0);
-  }else{
-    //print all of the vertices
-    for(unsigned int i=0;i<V.size();i++){
-      fout << "v " << V[i].x << " " << V[i].y << " " << V[i].z << "\n";
-    }
-
-    //obj files can have "l" datatype as a line
-    //this is how we will represent edges
-    for(unsigned int i=0;i<edges.size();i++){
-      fout << "l " << (edges[i].v1+1) << " " << (edges[i].v2+1) << "\n";
-    }
-  }
-  fout.close();
-}
+bool DEBUG = false;
 
 int main(int argc, char* argv[]){
   char* in_filename = NULL;
   int opt;
-  while((opt = getopt(argc,argv,"f:")) != -1){
+  while((opt = getopt(argc,argv,"f:d")) != -1){
     switch(opt){
       case 'f': //user must specify an input argument
         in_filename = optarg;
+        break;
+      case 'd':
+        DEBUG = true;
+        printf("debug flag set!\n");
         break;
       default:
         fprintf(stderr,"Error. Usage is <exec> -f <filename>\n");
@@ -73,7 +38,7 @@ int main(int argc, char* argv[]){
   }
 
   //step 1: parse input file/stream
-  std::vector<V3> vertices = parseFile(in_filename);
+  std::vector<V3> vertices = parseFilePoints(in_filename);
   int numPoints = vertices.size();
   V3* points = (V3*) malloc(sizeof(V3)*numPoints);
   for(int i=0;i<numPoints;i++) points[i] = vertices[i];
