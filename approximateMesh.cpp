@@ -60,15 +60,16 @@ void approximateMesh(V3* points, int numPoints, float rho, float delta,std::vect
   //step 1: create a plane for each point based off of its neighbors
   printf("getting planes...\n");
   Plane* planes = computeTangentPlanes(points,numPoints,rho,delta);
-
+  V3* newPoints = (V3*) malloc(sizeof(V3)*numPoints);
+  for(int i=0;i<numPoints;i++) newPoints[i] = planes[i].center;
   //step 2: propogate normal directions of every plane
   //substep: find plane centroid with largest z coordinate
   printf("getting max z...\n");
   int curmax = 0;
   int curidx = -1;
   for(int i=0;i<numPoints;i++){
-    if(curidx==-1 || planes[i].center.z>curmax){
-      curmax = planes[i].center.z;
+    if(curidx==-1 || newPoints[i].z>curmax){
+      curmax = newPoints[i].z;
       curidx = i;
     }
   }
@@ -78,26 +79,30 @@ void approximateMesh(V3* points, int numPoints, float rho, float delta,std::vect
   printf("getting neighbor graph...\n");
   std::vector<Edge> neighbor_edges;
   for(int i=0;i<numPoints;i++){
-    std::vector<int> neighbors = getNearest(points,numPoints,i,K);
+    std::vector<int> neighbors = getNearest(newPoints,numPoints,i,K);
     for(unsigned int j=0;j<neighbors.size();j++){
       int idx = neighbors[j];
       neighbor_edges.push_back(Edge(i,idx,1-fabs(planes[i].normal.dot(planes[idx].normal))));
     }
   }
-  std::sort(neighbor_edges.begin(),neighbor_edges.end()); //sort min to max
 
+  std::sort(neighbor_edges.begin(),neighbor_edges.end()); //sort min to max weight
   //substep: create MST rooted at prev idx
   printf("setting up mst...\n");
   std::vector<Edge> mst_edges;
-  bool* seen_mask = (bool*) calloc(numPoints,sizeof(bool));
+  int* pointForests = (int*) malloc(numPoints*sizeof(int));//kruskal's alogrithm connects forests until done
+  for(int i=0;i<numPoints;i++) pointForests[i] = i;
   for(unsigned int i=0;i<neighbor_edges.size();i++){ //going from min to max
     Edge curedge = neighbor_edges[i];
-    if(!seen_mask[curedge.v1] || !seen_mask[curedge.v2]){ //insert if no cycle
+    int f1 = pointForests[curedge.v1];
+    int f2 = pointForests[curedge.v2];
+    if(f1!=f2){ //different forest
       mst_edges.push_back(curedge);
-      seen_mask[curedge.v1] = true;
-      seen_mask[curedge.v2] = true;
+      if(f1<f2) for(int i=0;i<numPoints;i++) if(pointForests[i]==f2) pointForests[i]=f1;
+      else      for(int i=0;i<numPoints;i++) if(pointForests[i]==f1) pointForests[i]=f2;
     }
   }
+  free(pointForests);
 
   //substep: create adjacency list for faster lookup
   printf("making adjacency list...\n");
@@ -110,7 +115,7 @@ void approximateMesh(V3* points, int numPoints, float rho, float delta,std::vect
   
   //substep: use DFS from curIdx on mst to propogate normal directions
   printf("traversing mst to propagate normals...\n");
-  for(int i=0;i<numPoints;i++) seen_mask[i] = false;
+  bool* seen_mask = (bool*) calloc(numPoints,sizeof(bool));//calloc inits all to false
   std::vector<int> queue;
   queue.push_back(curidx);
   
@@ -164,7 +169,8 @@ void approximateMesh(V3* points, int numPoints, float rho, float delta,std::vect
     for(int j=0;j<numCubes.y;j++){
       cubes[i][j] = (bbox*) malloc(numCubes.z*sizeof(bbox));
       for(int k=0;k<numCubes.z;k++){
-        bbox cube = bbox(system.min+V3(i*sideLength,j*sideLength,k*sideLength),sideLength,sideLength,sideLength);
+        bbox cube = bbox(system.min+V3(i*sideLength,j*sideLength,k*sideLength),
+                         system.min+V3((i+1)*sideLength,(j+1)*sideLength,(k+1)*sideLength));
         cubes[i][j][k] = cube;
         //printf("cube %d,%d,%d is:\n",i,j,k);cubes[i][j][k].print();
         V3 blb,blf,brb,brf,tlb,tlf,trb,trf; //[top/bottom][left/right][front/back] values at each corner
@@ -185,7 +191,7 @@ void approximateMesh(V3* points, int numPoints, float rho, float delta,std::vect
         trbv=getDist(trb,planes,numPoints);
         trf=cube.max;
         trfv=getDist(trf,planes,numPoints);
-        for(int side=0;side<6;side++){//every face of cube
+        for(int side=0;side<6;side++){//all six faces of cube
           V3 p[4]; float v[4];
           switch(side){ //grab points clockwise 
             case 0://top
@@ -214,7 +220,7 @@ void approximateMesh(V3* points, int numPoints, float rho, float delta,std::vect
               break;
           }
 
-          if(((v[0]<=0)==(v[1]<=0)) && ((v[1]<=0)==(v[2]<=0)) && ((v[2]<=0)==(v[3]<=0))) continue; //4 match
+          if(((v[0]<=0)==(v[1]<=0)) && ((v[1]<=0)==(v[2]<=0)) && ((v[2]<=0)==(v[3]<=0))) continue; //4 match means not part of mesh
           else if(((v[0]<=0)==(v[1]<=0) && (v[1]<=0)==(v[2]<=0)) ||
                   ((v[0]<=0)==(v[1]<=0) && (v[1]<=0)==(v[3]<=0)) ||
                   ((v[0]<=0)==(v[2]<=0) && (v[2]<=0)==(v[3]<=0)) ||
@@ -224,40 +230,40 @@ void approximateMesh(V3* points, int numPoints, float rho, float delta,std::vect
               float vp = v[(idx-1)%4];V3 pp = p[(idx-1)%4];
               float vn = v[(idx+1)%4];V3 pn = p[(idx+1)%4];
               if((vm<=0)==(vp<=0) || (vm<=0)==(vn<=0)) continue; //only consider odd man out
-              float frac1 = fabs(vm)/fabs(vm+vp),
-                    frac2 = fabs(vm)/fabs(vm+vn);
-              V3 newP1 = pm+(pp*frac1);
-              V3 newP2 = pm+(pn*frac2);
+              float frac1 = fabs(vm)/(fabs(vm)+fabs(vp)),
+                    frac2 = fabs(vm)/(fabs(vm)+fabs(vn));
+              V3 newP1 = (pm*(1-frac1))+(pp*frac1);
+              V3 newP2 = (pm*(1-frac2))+(pn*frac2);
               newvertices.push_back(newP1);
               newvertices.push_back(newP2);
               edges.push_back(E(newP1,newP2));
             }
           }else{//two match
             if((v[0]<=0)==(v[1]<=0)){ //horiz line
-              float frac1 = fabs(v[0])/fabs(v[0]+v[3]),
-                    frac2 = fabs(v[1])/fabs(v[1]+v[2]);
-              V3 newP1 = p[0]+(p[3]*frac1);
-              V3 newP2 = p[1]+(p[2]*frac2);
+              float frac1 = fabs(v[0])/(fabs(v[0])+fabs(v[3])),
+                    frac2 = fabs(v[1])/(fabs(v[1])+fabs(v[2]));
+              V3 newP1 = (p[0]*(1-frac1))+(p[3]*frac1);
+              V3 newP2 = (p[1]*(1-frac2))+(p[2]*frac2);
               newvertices.push_back(newP1);
               newvertices.push_back(newP2);
               edges.push_back(E(newP1,newP2));
             }else if((v[0]<=0)==(v[3]<=0)){ //vert line
-              float frac1 = fabs(v[0])/fabs(v[0]+v[1]),
-                    frac2 = fabs(v[3])/fabs(v[3]+v[2]);
-              V3 newP1 = p[0]+(p[1]*frac1);
-              V3 newP2 = p[3]+(p[2]*frac2);
+              float frac1 = fabs(v[0])/(fabs(v[0])+fabs(v[1])),
+                    frac2 = fabs(v[3])/(fabs(v[3])+fabs(v[2]));
+              V3 newP1 = (p[0]*(1-frac1))+(p[1]*frac1);
+              V3 newP2 = (p[3]*(1-frac2))+(p[2]*frac2);
               newvertices.push_back(newP1);
               newvertices.push_back(newP2);
               edges.push_back(E(newP1,newP2));
             }else{ //double diagonal
-              float frac1 = fabs(v[0])/fabs(v[0]+v[1]),
-                    frac2 = fabs(v[0])/fabs(v[0]+v[3]),
-                    frac3 = fabs(v[2])/fabs(v[2]+v[1]),
-                    frac4 = fabs(v[2])/fabs(v[2]+v[3]);
-              V3 newP1 = p[0]+(p[1]*frac1);
-              V3 newP2 = p[0]+(p[3]*frac2);
-              V3 newP3 = p[2]+(p[1]*frac3);
-              V3 newP4 = p[2]+(p[3]*frac4);
+              float frac1 = fabs(v[0])/(fabs(v[0])+fabs(v[1])),
+                    frac2 = fabs(v[0])/(fabs(v[0])+fabs(v[3])),
+                    frac3 = fabs(v[2])/(fabs(v[2])+fabs(v[1])),
+                    frac4 = fabs(v[2])/(fabs(v[2])+fabs(v[3]));
+              V3 newP1 = (p[0]*(1-frac1))+(p[1]*frac1);
+              V3 newP2 = (p[0]*(1-frac2))+(p[3]*frac2);
+              V3 newP3 = (p[2]*(1-frac3))+(p[1]*frac3);
+              V3 newP4 = (p[2]*(1-frac4))+(p[3]*frac4);
               newvertices.push_back(newP1);
               newvertices.push_back(newP2);
               newvertices.push_back(newP3);
