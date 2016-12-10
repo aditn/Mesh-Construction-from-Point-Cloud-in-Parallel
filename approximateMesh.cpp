@@ -18,6 +18,9 @@
 #include "parseOBJ.h"
 #include "approximateMesh.h"
 
+/* linear algebra library */
+#include <Eigen/Dense>
+
 #define K 5 //num neighbors for MST Propogation
 
 #define USE_OMP
@@ -26,6 +29,8 @@ extern int numThreads;
 #endif
 
 extern bool DEBUG;
+
+using namespace Eigen;
 
 inline void insMin(int* idxs, float* vals, int N, int newIdx, float newVal){
   int curIdx = N-1;
@@ -45,7 +50,7 @@ inline void insMin(int* idxs, float* vals, int N, int newIdx, float newVal){
   }
 }
 
-std::vector<int> getNearest(V3* points, int numPoints, int idx, int numNeighbors){
+std::vector<int> getNearest(Vector3f* points, int numPoints, int idx, int numNeighbors){
   std::vector<int> neighbors;
   if(numPoints<=numNeighbors){
     for(int i=0;i<numPoints;i++) neighbors.push_back(i);
@@ -55,10 +60,10 @@ std::vector<int> getNearest(V3* points, int numPoints, int idx, int numNeighbors
     float* nearestVals = (float*) malloc(sizeof(float)*numNeighbors);
     for(int i=0;i<numNeighbors;i++) nearestVals[i] = INFINITY;
 
-    V3 curPoint = points[idx];
+    Vector3f curPoint = points[idx];
     for(int i=0;i<numPoints;i++){
       if(i==idx) continue;
-      insMin(nearestIdxs,nearestVals,numNeighbors,i,curPoint.dist(points[i]));
+      insMin(nearestIdxs,nearestVals,numNeighbors,i,(curPoint-points[i]).norm());
     }
     for(int i=0;i<numNeighbors;i++) neighbors.push_back(nearestIdxs[i]);
     free(nearestIdxs);
@@ -67,12 +72,12 @@ std::vector<int> getNearest(V3* points, int numPoints, int idx, int numNeighbors
   }
 }
 
-void approximateMesh(V3* points, int numPoints, float rho, float delta,std::vector<V3>& finalVertices,std::vector<Edge>& finalEdges){
+void approximateMesh(Vector3f* points, int numPoints, float rho, float delta,std::vector<Vector3f>& finalVertices,std::vector<Edge>& finalEdges){
   //step 1: create a plane for each point based off of its neighbors
   printf("getting planes...\n");
   printf("%d number of threads seen\n",numThreads);
   Plane* planes = computeTangentPlanes(points,numPoints,rho,delta);
-  V3* newPoints = (V3*) malloc(sizeof(V3)*numPoints);
+  Vector3f* newPoints = (Vector3f*) malloc(sizeof(Vector3f)*numPoints);
 #ifdef USE_OMP
   #pragma omp parallel for
 #endif
@@ -83,12 +88,12 @@ void approximateMesh(V3* points, int numPoints, float rho, float delta,std::vect
   int curmax = 0;
   int curidx = -1;
   for(int i=0;i<numPoints;i++){
-    if(curidx==-1 || newPoints[i].z>curmax){
-      curmax = newPoints[i].z;
+    if(curidx==-1 || newPoints[i](2)>curmax){
+      curmax = newPoints[i](2);
       curidx = i;
     }
   }
-  planes[curidx].normal = V3(0,0,(curmax>=0)? -1: 1); //TODO: why?
+  planes[curidx].normal = Vector3f(0,0,(curmax>=0)? -1: 1); //TODO: why?
 
   //substep: create graph of neighbors with edge weights
   printf("getting neighbor graph...\n");
@@ -103,7 +108,7 @@ void approximateMesh(V3* points, int numPoints, float rho, float delta,std::vect
 
   if(DEBUG){
     printf("DEBUG MODE: saving neighbor mesh\n");
-    saveMesh(std::vector<V3>(newPoints,newPoints+numPoints),neighbor_edges,"DEBUG_neighbors.obj");
+    saveMesh(std::vector<Vector3f>(newPoints,newPoints+numPoints),neighbor_edges,"DEBUG_neighbors.obj");
     printf("DEBUG MODE: done.\n");
   }
 
@@ -132,7 +137,7 @@ void approximateMesh(V3* points, int numPoints, float rho, float delta,std::vect
   
   if(DEBUG){
     printf("DEBUG MODE: saving MST mesh\n");
-    saveMesh(std::vector<V3>(newPoints,newPoints+numPoints),mst_edges,"DEBUG_MST.obj");
+    saveMesh(std::vector<Vector3f>(newPoints,newPoints+numPoints),mst_edges,"DEBUG_MST.obj");
     printf("DEBUG MODE: done.\n");
   }
 
@@ -177,60 +182,60 @@ void approximateMesh(V3* points, int numPoints, float rho, float delta,std::vect
   for(int i=0;i<numPoints;i++) system.expand(points[i]);
   system.print();
   
-  V3 universeSize = system.max-system.min;
+  Vector3f universeSize = system.max-system.min;
   float sideLength = rho+delta; //cube side length
   //modify system size to fit int num of cubes in each dir
   printPoint(universeSize);
-  float widthDif = int(std::ceil(universeSize.x/sideLength))*sideLength-universeSize.x,
-       heightDif = int(std::ceil(universeSize.y/sideLength))*sideLength-universeSize.y,
-        depthDif = int(std::ceil(universeSize.z/sideLength))*sideLength-universeSize.z;
-  V3 addon = V3(widthDif,heightDif,depthDif);
+  float widthDif = int(std::ceil(universeSize(0)/sideLength))*sideLength-universeSize(0),
+       heightDif = int(std::ceil(universeSize(1)/sideLength))*sideLength-universeSize(1),
+        depthDif = int(std::ceil(universeSize(2)/sideLength))*sideLength-universeSize(2);
+  Vector3f addon = Vector3f(widthDif,heightDif,depthDif);
   printPoint(addon);
-  addon.scale(0.5); // add evenly to min and max
+  addon = addon/2.0; // add evenly to min and max
   system.max += addon;
   system.min -= addon;
   system.print();
-  V3 numCubes = system.max-system.min;
-  numCubes.scale(1.0/sideLength);
-  if(numCubes.x==0)numCubes.x++;
-  if(numCubes.y==0)numCubes.y++;
-  if(numCubes.z==0)numCubes.z++;
+  Vector3f numCubes = system.max-system.min;
+  numCubes = numCubes/sideLength;
+  if(numCubes(0)==0)numCubes(0)++;
+  if(numCubes(1)==0)numCubes(1)++;
+  if(numCubes(2)==0)numCubes(2)++;
   printf("Num cubes in each dir is:\n");
   printPoint(numCubes);
 
   //step 4: Approximate mesh based on differences between cubes
-  bbox*** cubes = (bbox***) malloc(numCubes.x*sizeof(bbox**));
-  std::vector<V3> newvertices;
+  bbox*** cubes = (bbox***) malloc(numCubes(0)*sizeof(bbox**));
+  std::vector<Vector3f> newvertices;
   std::vector<Edge> edges;
-  for(int i=0;i<numCubes.x;i++){
-    cubes[i] = (bbox**) malloc(numCubes.y*sizeof(bbox*));
-    for(int j=0;j<numCubes.y;j++){
-      cubes[i][j] = (bbox*) malloc(numCubes.z*sizeof(bbox));
-      for(int k=0;k<numCubes.z;k++){
-        bbox cube = bbox(system.min+V3(i*sideLength,j*sideLength,k*sideLength),
-                         system.min+V3((i+1)*sideLength,(j+1)*sideLength,(k+1)*sideLength));
+  for(int i=0;i<numCubes(0);i++){
+    cubes[i] = (bbox**) malloc(numCubes(1)*sizeof(bbox*));
+    for(int j=0;j<numCubes(1);j++){
+      cubes[i][j] = (bbox*) malloc(numCubes(2)*sizeof(bbox));
+      for(int k=0;k<numCubes(2);k++){
+        bbox cube = bbox(system.min+Vector3f(i*sideLength,j*sideLength,k*sideLength),
+                         system.min+Vector3f((i+1)*sideLength,(j+1)*sideLength,(k+1)*sideLength));
         cubes[i][j][k] = cube;
         //printf("cube %d,%d,%d is:\n",i,j,k);cubes[i][j][k].print();
-        V3 blb,blf,brb,brf,tlb,tlf,trb,trf; //[top/bottom][left/right][front/back] values at each corner
+        Vector3f blb,blf,brb,brf,tlb,tlf,trb,trf; //[top/bottom][left/right][front/back] values at each corner
         float blbv,blfv,brbv,brfv,tlbv,tlfv,trbv,trfv; //actual vals at point
         blb=cube.min;
         blbv=getDist(blb,planes,numPoints);
-        blf=cube.min+V3(0,0,sideLength);
+        blf=cube.min+Vector3f(0,0,sideLength);
         blfv=getDist(blf,planes,numPoints);
-        brb=cube.min+V3(0,sideLength,0);
+        brb=cube.min+Vector3f(0,sideLength,0);
         brbv=getDist(brb,planes,numPoints);
-        brf=cube.max-V3(sideLength,0,0);
+        brf=cube.max-Vector3f(sideLength,0,0);
         brfv=getDist(brf,planes,numPoints);
-        tlb=cube.min+V3(sideLength,0,0);
+        tlb=cube.min+Vector3f(sideLength,0,0);
         tlbv=getDist(tlb,planes,numPoints);
-        tlf=cube.max-V3(0,sideLength,0);
+        tlf=cube.max-Vector3f(0,sideLength,0);
         tlfv=getDist(tlf,planes,numPoints);
-        trb=cube.max-V3(0,0,sideLength);
+        trb=cube.max-Vector3f(0,0,sideLength);
         trbv=getDist(trb,planes,numPoints);
         trf=cube.max;
         trfv=getDist(trf,planes,numPoints);
         for(int side=0;side<6;side++){//all six faces of cube
-          V3 p[4]; float v[4];
+          Vector3f p[4]; float v[4];
           switch(side){ //grab points clockwise 
             case 0://top
               p[0]=tlb;p[1]=trb;p[2]=trf;p[3]=tlf;
@@ -264,14 +269,14 @@ void approximateMesh(V3* points, int numPoints, float rho, float delta,std::vect
                   ((v[0]<=0)==(v[2]<=0) && (v[2]<=0)==(v[3]<=0)) ||
                   ((v[1]<=0)==(v[2]<=0) && (v[2]<=0)==(v[3]<=0))){//three match
             for(int idx=0;idx<4;idx++){
-              float vm = v[idx];V3 pm = p[idx];
-              float vp = v[(idx-1)%4];V3 pp = p[(idx-1)%4];
-              float vn = v[(idx+1)%4];V3 pn = p[(idx+1)%4];
+              float vm = v[idx];Vector3f pm = p[idx];
+              float vp = v[(idx-1)%4];Vector3f pp = p[(idx-1)%4];
+              float vn = v[(idx+1)%4];Vector3f pn = p[(idx+1)%4];
               if((vm<=0)==(vp<=0) || (vm<=0)==(vn<=0)) continue; //only consider odd man out
               float frac1 = fabs(vm)/(fabs(vm)+fabs(vp)),
                     frac2 = fabs(vm)/(fabs(vm)+fabs(vn));
-              V3 newP1 = (pm*(1-frac1))+(pp*frac1);
-              V3 newP2 = (pm*(1-frac2))+(pn*frac2);
+              Vector3f newP1 = (pm*(1-frac1))+(pp*frac1);
+              Vector3f newP2 = (pm*(1-frac2))+(pn*frac2);
               newvertices.push_back(newP1);
               newvertices.push_back(newP2);
               edges.push_back(Edge(newvertices.size()-1,newvertices.size()-2));
@@ -280,16 +285,16 @@ void approximateMesh(V3* points, int numPoints, float rho, float delta,std::vect
             if((v[0]<=0)==(v[1]<=0)){ //horiz line
               float frac1 = fabs(v[0])/(fabs(v[0])+fabs(v[3])),
                     frac2 = fabs(v[1])/(fabs(v[1])+fabs(v[2]));
-              V3 newP1 = (p[0]*(1-frac1))+(p[3]*frac1);
-              V3 newP2 = (p[1]*(1-frac2))+(p[2]*frac2);
+              Vector3f newP1 = (p[0]*(1-frac1))+(p[3]*frac1);
+              Vector3f newP2 = (p[1]*(1-frac2))+(p[2]*frac2);
               newvertices.push_back(newP1);
               newvertices.push_back(newP2);
               edges.push_back(Edge(newvertices.size()-1,newvertices.size()-2));
             }else if((v[0]<=0)==(v[3]<=0)){ //vert line
               float frac1 = fabs(v[0])/(fabs(v[0])+fabs(v[1])),
                     frac2 = fabs(v[3])/(fabs(v[3])+fabs(v[2]));
-              V3 newP1 = (p[0]*(1-frac1))+(p[1]*frac1);
-              V3 newP2 = (p[3]*(1-frac2))+(p[2]*frac2);
+              Vector3f newP1 = (p[0]*(1-frac1))+(p[1]*frac1);
+              Vector3f newP2 = (p[3]*(1-frac2))+(p[2]*frac2);
               newvertices.push_back(newP1);
               newvertices.push_back(newP2);
               edges.push_back(Edge(newvertices.size()-1,newvertices.size()-2));
@@ -298,17 +303,17 @@ void approximateMesh(V3* points, int numPoints, float rho, float delta,std::vect
                     frac2 = fabs(v[0])/(fabs(v[0])+fabs(v[3])),
                     frac3 = fabs(v[2])/(fabs(v[2])+fabs(v[1])),
                     frac4 = fabs(v[2])/(fabs(v[2])+fabs(v[3]));
-              V3 newP1 = (p[0]*(1-frac1))+(p[1]*frac1);
-              V3 newP2 = (p[0]*(1-frac2))+(p[3]*frac2);
-              V3 newP3 = (p[2]*(1-frac3))+(p[1]*frac3);
-              V3 newP4 = (p[2]*(1-frac4))+(p[3]*frac4);
+              Vector3f newP1 = (p[0]*(1-frac1))+(p[1]*frac1);
+              Vector3f newP2 = (p[0]*(1-frac2))+(p[3]*frac2);
+              Vector3f newP3 = (p[2]*(1-frac3))+(p[1]*frac3);
+              Vector3f newP4 = (p[2]*(1-frac4))+(p[3]*frac4);
               newvertices.push_back(newP1);
               newvertices.push_back(newP2);
               newvertices.push_back(newP3);
               newvertices.push_back(newP4);
 
               //edge dir depends on center val;
-              V3 pcent = 0.25*(newP1+newP2+newP3+newP4);
+              Vector3f pcent = 0.25*(newP1+newP2+newP3+newP4);
               float vcent = getDist(pcent,planes,numPoints);
               if((vcent<=0)==(v[0]<=0)){
                 edges.push_back(Edge(newvertices.size()-4,newvertices.size()-2));
@@ -328,7 +333,7 @@ void approximateMesh(V3* points, int numPoints, float rho, float delta,std::vect
   //get rid of duplicate vertices
   int* mapping = (int*) malloc(sizeof(int)*newvertices.size());
   for(unsigned int i=0;i<newvertices.size();i++){
-    V3 v1 = newvertices[i];
+    Vector3f v1 = newvertices[i];
     bool unique = true;
     for(unsigned int j=0;j<finalVertices.size();j++){
       if(v1==finalVertices[j]){

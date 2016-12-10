@@ -13,10 +13,15 @@
 #include "structures.h"
 #include "parseOBJ.h"
 
+/* Eigen Library */
+#include <Eigen/Dense>
+
+using namespace Eigen;
+
 #define MAX_LINE_SIZE 1024 //our max line size for obj file
 
-std::vector<V3> parseFilePoints(const char* filename){
-  std::vector<V3> points;
+std::vector<Vector3f> parseFilePoints(const char* filename){
+  std::vector<Vector3f> points;
   std::ifstream fin;
   fin.open(filename);
   if(!fin.good()){
@@ -27,7 +32,7 @@ std::vector<V3> parseFilePoints(const char* filename){
     while(fin.getline(line,MAX_LINE_SIZE)){
       float x,y,z;
       sscanf(line,"%s %f %f %f",line_type,&x,&y,&z);
-      if(line_type[0]=='v') points.push_back(V3(x,y,z)); //vertices are points in point cloud
+      if(line_type[0]=='v') points.push_back(Vector3f(x,y,z)); //vertices are points in point cloud
       else printf("couldn't recognize type %s\n",line_type);
     }
   }
@@ -35,7 +40,7 @@ std::vector<V3> parseFilePoints(const char* filename){
   return points;
 }
 
-void saveMesh(std::vector<V3> V, std::vector<Edge> edges, const char* out_filename){
+void saveMesh(std::vector<Vector3f> V, std::vector<Edge> edges, const char* out_filename){
   std::ofstream fout;
   fout.open(out_filename);
   if(!fout.good()){
@@ -44,7 +49,7 @@ void saveMesh(std::vector<V3> V, std::vector<Edge> edges, const char* out_filena
   }else{
     //print all of the vertices
     for(unsigned int i=0;i<V.size();i++){
-      fout << "v " << V[i].x << " " << V[i].y << " " << V[i].z << "\n";
+      fout << "v " << V[i](0) << " " << V[i](1) << " " << V[i](2) << "\n";
     }
 
     //obj files can have "l" datatype as a line
@@ -57,8 +62,8 @@ void saveMesh(std::vector<V3> V, std::vector<Edge> edges, const char* out_filena
 }
 
 void savePlanes(Plane* planes,int numPoints, const char* out_filename){
-  V3* centers = (V3*) malloc(sizeof(V3)*numPoints);
-  V3* npoints = (V3*) malloc(sizeof(V3)*numPoints);
+  Vector3f* centers = (Vector3f*) malloc(sizeof(Vector3f)*numPoints);
+  Vector3f* npoints = (Vector3f*) malloc(sizeof(Vector3f)*numPoints);
   for(int i=0;i<numPoints;i++){
     centers[i] = planes[i].center;
     npoints[i] = planes[i].center+2*planes[i].normal;
@@ -72,8 +77,8 @@ void savePlanes(Plane* planes,int numPoints, const char* out_filename){
   }else{
     //print all of the vertices
     for(int i=0;i<numPoints;i++){
-      fout << "v " << centers[i].x << " " << centers[i].y << " " << centers[i].z << "\n";
-      fout << "v " << npoints[i].x << " " << npoints[i].y << " " << npoints[i].z << "\n";
+      fout << "v " << centers[i](0) << " " << centers[i](1) << " " << centers[i](2) << "\n";
+      fout << "v " << npoints[i](0) << " " << npoints[i](1) << " " << npoints[i](2) << "\n";
     }
 
     //obj files can have "l" datatype as a line

@@ -19,11 +19,15 @@
 #include "approximateMesh.h"
 #include "parseOBJ.h"
 
+/* linear algebra library */
+#include <Eigen/Dense>
+
 #define rho 0.4 //given rho radius sphere, at least one point?
 #define delta 0.6 //noise
+
+using namespace Eigen;
 bool DEBUG = false;
 int numThreads;
-
 
 inline float timeSince(std::chrono::time_point<std::chrono::steady_clock> start){
   float ms = std::chrono::duration<float,std::milli>(std::chrono::steady_clock::now()-start).count();
@@ -61,14 +65,16 @@ int main(int argc, char* argv[]){
   auto start = std::chrono::steady_clock::now();
 
   //step 1: parse input file/stream
-  std::vector<V3> vertices = parseFilePoints(in_filename);
+
+  std::vector<Vector3f> vertices = parseFilePoints(in_filename);
+
   int numPoints = vertices.size();
-  V3* points = (V3*) malloc(sizeof(V3)*numPoints);
+  Vector3f* points = (Vector3f*) malloc(sizeof(Vector3f)*numPoints);
   for(int i=0;i<numPoints;i++) points[i] = vertices[i];
   printf("time %.4fs\n",timeSince(start));
   
   //step 2: create mesh in parallel
-  std::vector<V3> finalVertices;
+  std::vector<Vector3f> finalVertices;
   std::vector<Edge> edges;
   //will pass outputs into function, which will write to them
   approximateMesh(points,numPoints,rho,delta,finalVertices,edges); 

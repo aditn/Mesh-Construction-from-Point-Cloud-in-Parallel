@@ -1,6 +1,11 @@
 #include <cmath>
+
+/* linear algebra library */
+#include <Eigen/Dense>
+
 #include <stdio.h>
 #define TINYNUM 0.000001
+
 
 struct V3{
   float x,y,z;
@@ -53,11 +58,11 @@ struct V3{
   }
 };
 inline V3 operator-(const V3 a, const V3 b){
-    V3 out;
-    out.x = a.x-b.x;
-    out.y = a.y-b.y;
-    out.z = a.z-b.z;
-    return out;
+  V3 out;
+  out.x = a.x-b.x;
+  out.y = a.y-b.y;
+  out.z = a.z-b.z;
+  return out;
 }
 inline V3 operator+(const V3 a, const V3 b){
     V3 out;
@@ -91,59 +96,59 @@ inline bool operator==(const V3 a, const V3 b){
 }
 
 struct bbox{
-  V3 min,max;
+  Eigen::Vector3f min,max;
   bbox(){
-    this->min = V3();
-    this->max = V3();
+    this->min = Eigen::Vector3f(0.f,0.f,0.f);
+    this->max = Eigen::Vector3f(0.f,0.f,0.f);
   }
-  bbox(V3 p1, V3 p2){
-    this->min = V3(std::min(p1.x,p2.x),std::min(p1.y,p2.y),std::min(p1.z,p2.z));
-    this->max = V3(std::max(p1.x,p2.x),std::max(p1.y,p2.y),std::max(p1.z,p2.z));
+  bbox(Eigen::Vector3f p1, Eigen::Vector3f p2){
+    this->min = Eigen::Vector3f(std::min(p1(0),p2(0)),std::min(p1(1),p2(1)),std::min(p1(2),p2(2)));
+    this->max = Eigen::Vector3f(std::max(p1(0),p2(0)),std::max(p1(1),p2(1)),std::max(p1(2),p2(2)));
   }
-  bbox(V3 min,float width,float height,float depth){
-    this->min=V3(min);
-    this->max=min+V3(width,height,depth);
+  bbox(Eigen::Vector3f min,float width,float height,float depth){
+    this->min=min;
+    this->max=min+Eigen::Vector3f(width,height,depth);
   }
 
   /** update bbox to include a point */
-  void expand(V3 p){
-    if(p.x<this->min.x){
-      this->min.x = p.x;
-    }else if(p.x>this->max.x){
-      this->max.x = p.x;
+  void expand(Eigen::Vector3f p){
+    if(p(0)<this->min(0)){
+      this->min(0) = p(0);
+    }else if(p(0)>this->max(0)){
+      this->max(0) = p(0);
     }
 
-    if(p.y<this->min.y){
-      this->min.y = p.y;
-    }else if(p.y>this->max.y){
-      this->max.y = p.y;
+    if(p(1)<this->min(1)){
+      this->min(1) = p(1);
+    }else if(p(1)>this->max(1)){
+      this->max(1) = p(1);
     }
 
-    if(p.z<this->min.z){
-      this->min.z = p.z;
-    }else if(p.z>this->max.z){
-      this->max.z = p.z;
+    if(p(2)<this->min(2)){
+      this->min(2) = p(2);
+    }else if(p(2)>this->max(2)){
+      this->max(2) = p(2);
     }
   }
 
   void print(){
-    printf("bbox is (%.3f,%.3f,%.3f)<->(%.3f,%.3f,%.3f)\n",this->min.x,this->min.y,this->min.z,this->max.x,this->max.y,this->max.z);
+    printf("bbox is (%.3f,%.3f,%.3f)<->(%.3f,%.3f,%.3f)\n",this->min(0),this->min(1),this->min(2),this->max(0),this->max(1),this->max(2));
   }
 };
 
 struct Plane{
-  V3 center, normal;
+  Eigen::Vector3f center, normal;
 };
 
 /*struct E{
-  V3 v1,v2;
+  V3 v1,v2;/
   E(){
-  this->v1 = V3();
-  this->v2 = V3();
+  this->v1(0.f,0.f,0.f);
+  this->v2(0.f,0.f,0.f);
   }
-  E(V3 v1,V3 v2){
-    this->v1 = V3(v1);
-    this->v2 = V3(v2);
+  E(Eigen::Vector3f v1,Eigen::Vector3f v2){
+    this->v1 = v1;
+    this->v2 = v2;
   }
 };*/
 
@@ -170,6 +175,6 @@ struct Edge{
  }
 };
 
-inline void printPoint(V3 p){
-  printf("(%.3f,%.3f,%.3f)\n",p.x,p.y,p.z);
+inline void printPoint(Eigen::Vector3f p){
+  printf("(%.3f,%.3f,%.3f)\n",p(0),p(1),p(2));
 }

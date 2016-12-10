@@ -11,35 +11,52 @@
 /* data structures */
 #include "structures.h"
 
+/* linear algebra library */
+#include <Eigen/Dense>
+
 using namespace std;
+using namespace Eigen;
 
-Plane getTangentPlane(vector<V3> neighbors){
+Plane getTangentPlane(vector<Vector3f> neighbors){
   Plane tangentPlane;
-  tangentPlane.center = V3(0.f,0.f,0.f);
-  tangentPlane.normal = V3(0.f,0.f,1.f);
+  tangentPlane.center = Vector3f(0.f,0.f,0.f);
+  tangentPlane.normal = Vector3f(0.f,0.f,0.f);
   int numNeighbors = neighbors.size();
-  for(int i=0;i<numNeighbors;i++) tangentPlane.center.add(neighbors[i]);
-  tangentPlane.center.scale(1.0/numNeighbors);
 
-  //TODO: compute tangent the right way
-  if(numNeighbors>=3){
-    V3 v1 = neighbors[1]-neighbors[0];
-    V3 v2 = neighbors[2]-neighbors[0];
-    tangentPlane.normal = v1.cross(v2).unit();
+  MatrixXf matPoints(numNeighbors,3);
+
+  // get centroids of neigbors
+  for(int i=0;i<numNeighbors;i++){
+    tangentPlane.center += neighbors[i];
+    matPoints.row(i) = neighbors[i];
   }
 
+  tangentPlane.center/= numNeighbors;
+
+  // covariance matrix
+  matPoints -= tangentPlane.center;
+  MatrixXf cov = MatrixXf::Zero(3,3);
+  cov = matPoints * matPoints.transpose();
+  JacobiSVD<MatrixXf> svd(cov, ComputeThinV);
+
+  // S is stored in svd.singularValues()
+  // By default S is sorted in decreasing order. We need the smallest eigenvalue.
+  // V is stored in svd.matrixV()
+  // Set the Normal to the Eigenvector corresponding to the smallest eigenvalue.
+  tangentPlane.normal = svd.matrixV().col(2);
+  
   return tangentPlane;
 }
 
-Plane* computeTangentPlanes(V3* points, int numPoints, float ro, float delta){
+Plane* computeTangentPlanes(Vector3f* points, int numPoints, float ro, float delta){
   Plane* planes = (Plane *) malloc(sizeof(Plane)*numPoints);
   for (int i=0;i<numPoints;i++){
-    vector<V3> neighbors;
-    V3 p1 = points[i];
+    vector<Vector3f> neighbors;
+    Vector3f p1 = points[i];
     for (int j=0;j<numPoints;j++){
       // if point within ro+delta, add to nearby_points
-      V3 p2 = points[j];
-      float dist = p1.dist(p2);
+      Vector3f p2 = points[j];
+      float dist = (p2-p1).norm();
       if (dist<=(ro+delta)) neighbors.push_back(points[j]);
     }
     planes[i] = getTangentPlane(neighbors);
@@ -47,20 +64,19 @@ Plane* computeTangentPlanes(V3* points, int numPoints, float ro, float delta){
   return planes;
 }
 
-float getDist(V3 p, Plane* planes, int numPlanes){
+float getDist(Vector3f p, Plane* planes, int numPlanes){
   //given a point, approximate its distance to the nearest plane
   
   //first find closest plane
   int closestIdx = 0;
-  float closestDist = p.dist(planes[0].center);
+  float closestDist = (p-planes[0].center).norm();
   for(int i=1;i<numPlanes;i++){
-    float curDist = p.dist(planes[i].center);
+    float curDist = (p-planes[i].center).norm();
     if(curDist<closestDist){
       closestDist = curDist;
       closestIdx = i;
     }
   }
-
   //then approximate dist to surface
   return (p-planes[closestIdx].center).dot(planes[closestIdx].normal); 
 }
