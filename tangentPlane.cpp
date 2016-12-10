@@ -11,8 +11,12 @@
 /* data structures */
 #include "structures.h"
 #include "tangentPlane.h"
+#include "constants.h"
+
 /* linear algebra library */
 #include <Eigen/Dense>
+
+#include <omp.h>
 
 using namespace std;
 using namespace Eigen;
@@ -51,8 +55,36 @@ Plane getTangentPlane(vector<Vector3f> neighbors){
   return tangentPlane;
 }
 
-Plane* computeTangentPlanes(Vector3f* points, int numPoints, float ro, float delta){
+#ifdef USE_OMP
+Plane* computeTangentPlanes(Vector3f* points, int numPoints){
   Plane* planes = (Plane *) malloc(sizeof(Plane)*numPoints);
+
+  bool* close_enough = (bool*) calloc(numPoints*numPoints,sizeof(bool));
+
+  #pragma omp parallel for
+  for(int i=0;i<numPoints*numPoints;i++){
+    int row = i/numPoints,
+        col = i%numPoints;
+    float dist = (points[col]-points[row]).norm();
+    if(dist <= (rho+delta)) close_enough[i] = true;
+  }
+
+  #pragma omp parallel for
+  for(int i=0;i<numPoints;i++){
+    vector<Vector3f> neighbors;
+    int idx_coord = numPoints*i;
+    for(int idx=0;idx<numPoints;idx++){
+      if(close_enough[idx_coord+idx]) neighbors.push_back(points[idx]);
+    }
+    planes[i] = getTangentPlane(neighbors);
+  }
+
+  return planes;
+}
+#else
+Plane* computeTangentPlanes(Vector3f* points, int numPoints){
+  Plane* planes = (Plane *) malloc(sizeof(Plane)*numPoints);
+
   for (int i=0;i<numPoints;i++){
     vector<Vector3f> neighbors;
     Vector3f p1 = points[i];
@@ -66,6 +98,7 @@ Plane* computeTangentPlanes(Vector3f* points, int numPoints, float ro, float del
   }
   return planes;
 }
+#endif
 
 float getDist(Vector3f p, Plane* planes, int numPlanes){
   //given a point, approximate its distance to the nearest plane

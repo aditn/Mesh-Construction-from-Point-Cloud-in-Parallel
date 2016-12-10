@@ -9,8 +9,10 @@
 /* fabs, square, sqrt */
 #include <cmath>
 
+#ifdef USE_OMP
 /* needed for openMP! */
 #include <omp.h>
+#endif
 
 /* data structures */
 #include "structures.h"
@@ -18,19 +20,16 @@
 #include "parseOBJ.h"
 #include "approximateMesh.h"
 #include "ourTimer.h"
+#include "constants.h"
 
 /* linear algebra library */
 #include <Eigen/Dense>
 
-#define K 5 //num neighbors for MST Propogation
-
-#define USE_OMP
 #ifdef USE_OMP
 extern int numThreads;
 #endif
 
 extern bool DEBUG;
-
 using namespace Eigen;
 
 inline void insMin(int* idxs, float* vals, int N, int newIdx, float newVal){
@@ -73,13 +72,13 @@ std::vector<int> getNearest(Vector3f* points, int numPoints, int idx, int numNei
   }
 }
 
-void approximateMesh(Vector3f* points, int numPoints, float rho, float delta,std::vector<Vector3f>& finalVertices,std::vector<Edge>& finalEdges){
+void approximateMesh(Vector3f* points, int numPoints,std::vector<Vector3f>& finalVertices,std::vector<Edge>& finalEdges){
   //step 1: create a plane for each point based off of its neighbors
   printf("getting planes...\n");
 #ifdef USE_OMP
   printf("using OMP with %d threads\n",numThreads);
 #endif
-  Plane* planes = computeTangentPlanes(points,numPoints,rho,delta);
+  Plane* planes = computeTangentPlanes(points,numPoints);
   Vector3f* newPoints = (Vector3f*) malloc(sizeof(Vector3f)*numPoints);
 #ifdef USE_OMP
   #pragma omp parallel for

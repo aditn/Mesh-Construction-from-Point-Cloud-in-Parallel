@@ -18,12 +18,10 @@
 #include "approximateMesh.h"
 #include "parseOBJ.h"
 #include "ourTimer.h"
+#include "constants.h"
 
 /* linear algebra library */
 #include <Eigen/Dense>
-
-#define rho 0.4 //given rho radius sphere, at least one point?
-#define delta 0.6 //noise
 
 using namespace Eigen;
 bool DEBUG = false;
@@ -33,11 +31,16 @@ int main(int argc, char* argv[]){
   char* in_filename = NULL;
   int opt;
   numThreads=1;
+#ifdef USE_OMP
   while((opt = getopt(argc,argv,"f:t:d")) != -1){
+#else
+  while((opt = getopt(argc,argv,"f:d")) != -1){
+#endif
     switch(opt){
       case 'f': //user must specify an input argument
         in_filename = optarg;
         break;
+#ifdef USE_OMP
       case 't':
         numThreads = atoi(optarg);
         printf("using %d threads\n",numThreads);
@@ -46,13 +49,18 @@ int main(int argc, char* argv[]){
           return 1;
         }
         break;
+#endif
       case 'd':
         DEBUG = true;
         printf("debug flag set!\n");
         break;
       default:
         fprintf(stderr,"Error. Usage is <exec> -f <filename>\n");
+#ifdef USE_OMP
         fprintf(stderr,"You can also use -d to debug and -t <int> to set numthreads\n");
+#else
+        fprintf(stderr,"You can also use -d to debug\n");
+#endif
         return 1;
     }
   }
@@ -72,7 +80,7 @@ int main(int argc, char* argv[]){
   std::vector<Vector3f> finalVertices;
   std::vector<Edge> edges;
   //will pass outputs into function, which will write to them
-  approximateMesh(points,numPoints,rho,delta,finalVertices,edges); 
+  approximateMesh(points,numPoints,finalVertices,edges); 
   printf("time %.4fs\n",timeSince());
 
   //step 2f: Refine mesh
