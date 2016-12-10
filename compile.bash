@@ -1,2 +1,2 @@
 #!/bin/bash
-g++ -Wall *.cpp -o runnable -fopenmp
+g++ -Wall -std=c++11 *.cpp -o runnable -fopenmp

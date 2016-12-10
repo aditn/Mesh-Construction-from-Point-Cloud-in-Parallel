@@ -55,3 +55,32 @@ void saveMesh(std::vector<V3> V, std::vector<Edge> edges, const char* out_filena
   }
   fout.close();
 }
+
+void savePlanes(Plane* planes,int numPoints, const char* out_filename){
+  V3* centers = (V3*) malloc(sizeof(V3)*numPoints);
+  V3* npoints = (V3*) malloc(sizeof(V3)*numPoints);
+  for(int i=0;i<numPoints;i++){
+    centers[i] = planes[i].center;
+    npoints[i] = planes[i].center+2*planes[i].normal;
+  }
+
+  std::ofstream fout;
+  fout.open(out_filename);
+  if(!fout.good()){
+    printf("couldn't write to %s\n",out_filename);
+    exit(0);
+  }else{
+    //print all of the vertices
+    for(int i=0;i<numPoints;i++){
+      fout << "v " << centers[i].x << " " << centers[i].y << " " << centers[i].z << "\n";
+      fout << "v " << npoints[i].x << " " << npoints[i].y << " " << npoints[i].z << "\n";
+    }
+
+    //obj files can have "l" datatype as a line
+    //this is how we will represent edges
+    for(int i=1;i<=numPoints;i++){
+      fout << "l " << 2*i-1 << " " << 2*i << "\n";
+    }
+  }
+  fout.close();
+}

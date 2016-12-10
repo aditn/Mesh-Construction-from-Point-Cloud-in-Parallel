@@ -9,6 +9,9 @@
 /* fabs, square, sqrt */
 #include <cmath>
 
+/* needed for openMP! */
+#include <omp.h>
+
 /* data structures */
 #include "structures.h"
 #include "tangentPlane.h"
@@ -16,6 +19,12 @@
 #include "approximateMesh.h"
 
 #define K 5 //num neighbors for MST Propogation
+
+#define USE_OMP
+#ifdef USE_OMP
+extern int numThreads;
+#endif
+
 extern bool DEBUG;
 
 inline void insMin(int* idxs, float* vals, int N, int newIdx, float newVal){
@@ -61,8 +70,12 @@ std::vector<int> getNearest(V3* points, int numPoints, int idx, int numNeighbors
 void approximateMesh(V3* points, int numPoints, float rho, float delta,std::vector<V3>& finalVertices,std::vector<Edge>& finalEdges){
   //step 1: create a plane for each point based off of its neighbors
   printf("getting planes...\n");
+  printf("%d number of threads seen\n",numThreads);
   Plane* planes = computeTangentPlanes(points,numPoints,rho,delta);
   V3* newPoints = (V3*) malloc(sizeof(V3)*numPoints);
+#ifdef USE_OMP
+  #pragma omp parallel for
+#endif
   for(int i=0;i<numPoints;i++) newPoints[i] = planes[i].center;
   //step 2: propogate normal directions of every plane
   //substep: find plane centroid with largest z coordinate
@@ -99,6 +112,9 @@ void approximateMesh(V3* points, int numPoints, float rho, float delta,std::vect
   printf("setting up mst...\n");
   std::vector<Edge> mst_edges;
   int* pointForests = (int*) malloc(numPoints*sizeof(int));//kruskal's alogrithm connects forests until done
+#ifdef USE_OMP
+  #pragma omp parallel for
+#endif
   for(int i=0;i<numPoints;i++) pointForests[i] = i;
   for(unsigned int i=0;i<neighbor_edges.size();i++){ //going from min to max
     Edge curedge = neighbor_edges[i];
@@ -148,6 +164,12 @@ void approximateMesh(V3* points, int numPoints, float rho, float delta,std::vect
     }
   }
   free(seen_mask);
+
+  if(DEBUG){
+    printf("DEBUG MODE: saving normals mesh\n");
+    savePlanes(planes,numPoints,"DEBUG_normals.obj");
+    printf("DEBUG MODE: done.\n");
+  }
 
   //step 3: create a bounding box of the universe and split it into cubes
   printf("Approximating mesh now!\n");
@@ -332,5 +354,10 @@ void approximateMesh(V3* points, int numPoints, float rho, float delta,std::vect
       seenMat[v1][v2]=true;
       finalEdges.push_back(Edge(v1,v2));
     }
+  }
+  if(DEBUG){
+    printf("DEBUG MODE: saving approximated mesh\n");
+    saveMesh(finalVertices,finalEdges,"DEBUG_approximate.obj");
+    printf("DEBUG MODE: done.\n");
   }
 }
