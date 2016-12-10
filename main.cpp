@@ -7,6 +7,9 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+/* needed for openMP! */
+#include <omp.h>
+
 /* needed for vectors */
 #include <vector>
 
@@ -36,6 +39,9 @@ int main(int argc, char* argv[]){
         return 1;
     }
   }
+  omp_set_num_threads(10);
+  #pragma omp parallel for
+  for(int i=0;i<10;i++) printf("hello from %d\n",i);
 
   //step 1: parse input file/stream
   std::vector<V3> vertices = parseFilePoints(in_filename);
