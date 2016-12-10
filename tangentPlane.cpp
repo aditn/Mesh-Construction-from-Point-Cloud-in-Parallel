@@ -10,7 +10,7 @@
 
 /* data structures */
 #include "structures.h"
-
+#include "tangentPlane.h"
 /* linear algebra library */
 #include <Eigen/Dense>
 
@@ -34,9 +34,12 @@ Plane getTangentPlane(vector<Vector3f> neighbors){
   tangentPlane.center/= numNeighbors;
 
   // covariance matrix
-  matPoints -= tangentPlane.center;
+  for(int i=0;i<numNeighbors;i++){
+    matPoints.row(i) -= tangentPlane.center;
+  }
+
   MatrixXf cov = MatrixXf::Zero(3,3);
-  cov = matPoints * matPoints.transpose();
+  cov = matPoints.transpose() * matPoints;
   JacobiSVD<MatrixXf> svd(cov, ComputeThinV);
 
   // S is stored in svd.singularValues()
