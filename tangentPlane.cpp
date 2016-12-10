@@ -36,15 +36,15 @@ Plane getTangentPlane(vector<Vector3f> neighbors){
 
   // covariance matrix
   matPoints -= tangentPlane.center;
-  Matrix3f cov;
+  MatrixXf cov = MatrixXf::Zero(3,3);
   cov = matPoints * matPoints.transpose();
-  JacobiSVD<Matrix3f> svd(cov, ComputeThinV);
+  JacobiSVD<MatrixXf> svd(cov, ComputeThinV);
 
   // S is stored in svd.singularValues()
   // By default S is sorted in decreasing order. We need the smallest eigenvalue.
   // V is stored in svd.matrixV()
   // Set the Normal to the Eigenvector corresponding to the smallest eigenvalue.
-  tangentPlane.normal = svd.matrixV.col(2);
+  tangentPlane.normal = svd.matrixV().col(2);
   
   return tangentPlane;
 }
@@ -72,7 +72,7 @@ float getDist(Vector3f p, Plane* planes, int numPlanes){
   int closestIdx = 0;
   float closestDist = (p-planes[0].center).norm();
   for(int i=1;i<numPlanes;i++){
-    float curDist = p.dist(planes[i].center);
+    float curDist = (p-planes[i].center).norm();
     if(curDist<closestDist){
       closestDist = curDist;
       closestIdx = i;
