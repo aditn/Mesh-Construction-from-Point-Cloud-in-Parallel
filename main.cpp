@@ -6,7 +6,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <chrono> //for timing
 
 /* needed for openMP! */
 #include <omp.h>
@@ -18,6 +17,7 @@
 #include "structures.h"
 #include "approximateMesh.h"
 #include "parseOBJ.h"
+#include "ourTimer.h"
 
 /* linear algebra library */
 #include <Eigen/Dense>
@@ -28,11 +28,6 @@
 using namespace Eigen;
 bool DEBUG = false;
 int numThreads;
-
-inline float timeSince(std::chrono::time_point<std::chrono::steady_clock> start){
-  float ms = std::chrono::duration<float,std::milli>(std::chrono::steady_clock::now()-start).count();
-  return ms*0.001;
-}
 
 int main(int argc, char* argv[]){
   char* in_filename = NULL;
@@ -62,7 +57,7 @@ int main(int argc, char* argv[]){
     }
   }
   omp_set_num_threads(numThreads);
-  auto start = std::chrono::steady_clock::now();
+  startTimer();
 
   //step 1: parse input file/stream
 
@@ -71,14 +66,14 @@ int main(int argc, char* argv[]){
   int numPoints = vertices.size();
   Vector3f* points = (Vector3f*) malloc(sizeof(Vector3f)*numPoints);
   for(int i=0;i<numPoints;i++) points[i] = vertices[i];
-  printf("time %.4fs\n",timeSince(start));
+  printf("time %.4fs\n",timeSince());
   
   //step 2: create mesh in parallel
   std::vector<Vector3f> finalVertices;
   std::vector<Edge> edges;
   //will pass outputs into function, which will write to them
   approximateMesh(points,numPoints,rho,delta,finalVertices,edges); 
-  printf("time %.4fs\n",timeSince(start));
+  printf("time %.4fs\n",timeSince());
 
   //step 2f: Refine mesh
 
@@ -91,6 +86,6 @@ int main(int argc, char* argv[]){
   for(int i=0;i<9;i++) out_filename[slen-4+i]="_out.obj"[i]; //9 includes null terminator
   printf("saving to %s\n",out_filename);
   saveMesh(finalVertices,edges,out_filename);
-  printf("time %.4fs\n",timeSince(start));
+  printf("time %.4fs\n",timeSince());
   return 0;
 }

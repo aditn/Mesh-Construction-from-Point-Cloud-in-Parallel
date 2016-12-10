@@ -17,6 +17,7 @@
 #include "tangentPlane.h"
 #include "parseOBJ.h"
 #include "approximateMesh.h"
+#include "ourTimer.h"
 
 /* linear algebra library */
 #include <Eigen/Dense>
@@ -75,13 +76,17 @@ std::vector<int> getNearest(Vector3f* points, int numPoints, int idx, int numNei
 void approximateMesh(Vector3f* points, int numPoints, float rho, float delta,std::vector<Vector3f>& finalVertices,std::vector<Edge>& finalEdges){
   //step 1: create a plane for each point based off of its neighbors
   printf("getting planes...\n");
-  printf("%d number of threads seen\n",numThreads);
+#ifdef USE_OMP
+  printf("using OMP with %d threads\n",numThreads);
+#endif
   Plane* planes = computeTangentPlanes(points,numPoints,rho,delta);
   Vector3f* newPoints = (Vector3f*) malloc(sizeof(Vector3f)*numPoints);
 #ifdef USE_OMP
   #pragma omp parallel for
 #endif
   for(int i=0;i<numPoints;i++) newPoints[i] = planes[i].center;
+  printf("time %.4fs\n",timeSince());
+  
   //step 2: propogate normal directions of every plane
   //substep: find plane centroid with largest z coordinate
   printf("getting max z...\n");
@@ -97,6 +102,21 @@ void approximateMesh(Vector3f* points, int numPoints, float rho, float delta,std
 
   //substep: create graph of neighbors with edge weights
   printf("getting neighbor graph...\n");
+#ifdef USE_OMP
+  std::vector<int>* neighbors = (std::vector<int>*) malloc(sizeof(std::vector<Edge>)*numPoints);
+  #pragma omp parallel for
+  for(int i=0;i<numPoints;i++){
+    neighbors[i] = getNearest(newPoints,numPoints,i,K);
+  }
+  std::vector<Edge> neighbor_edges;
+  for(int i=0;i<numPoints;i++){
+    for(unsigned int j=0;j<neighbors[i].size();j++){
+      int idx = neighbors[i][j];
+      neighbor_edges.push_back(Edge(i,idx,1-fabs(planes[i].normal.dot(planes[idx].normal))));
+    }
+  }
+  free(neighbors);
+#else
   std::vector<Edge> neighbor_edges;
   for(int i=0;i<numPoints;i++){
     std::vector<int> neighbors = getNearest(newPoints,numPoints,i,K);
@@ -105,7 +125,9 @@ void approximateMesh(Vector3f* points, int numPoints, float rho, float delta,std
       neighbor_edges.push_back(Edge(i,idx,1-fabs(planes[i].normal.dot(planes[idx].normal))));
     }
   }
-
+#endif
+  printf("time %.4fs\n",timeSince());
+  
   if(DEBUG){
     printf("DEBUG MODE: saving neighbor mesh\n");
     saveMesh(std::vector<Vector3f>(newPoints,newPoints+numPoints),neighbor_edges,"DEBUG_neighbors.obj");
@@ -134,6 +156,7 @@ void approximateMesh(Vector3f* points, int numPoints, float rho, float delta,std
     }
   }
   free(pointForests);
+  printf("time %.4fs\n",timeSince());
   
   if(DEBUG){
     printf("DEBUG MODE: saving MST mesh\n");
@@ -169,6 +192,7 @@ void approximateMesh(Vector3f* points, int numPoints, float rho, float delta,std
     }
   }
   free(seen_mask);
+  printf("time %.4fs\n",timeSince());
 
   if(DEBUG){
     printf("DEBUG MODE: saving normals mesh\n");
@@ -185,16 +209,13 @@ void approximateMesh(Vector3f* points, int numPoints, float rho, float delta,std
   Vector3f universeSize = system.max-system.min;
   float sideLength = rho+delta; //cube side length
   //modify system size to fit int num of cubes in each dir
-  printPoint(universeSize);
   float widthDif = int(std::ceil(universeSize(0)/sideLength))*sideLength-universeSize(0),
        heightDif = int(std::ceil(universeSize(1)/sideLength))*sideLength-universeSize(1),
         depthDif = int(std::ceil(universeSize(2)/sideLength))*sideLength-universeSize(2);
   Vector3f addon = Vector3f(widthDif,heightDif,depthDif);
-  printPoint(addon);
   addon = addon/2.0; // add evenly to min and max
   system.max += addon;
   system.min -= addon;
-  system.print();
   Vector3f numCubes = system.max-system.min;
   numCubes = numCubes/sideLength;
   if(numCubes(0)==0)numCubes(0)++;
@@ -329,6 +350,7 @@ void approximateMesh(Vector3f* points, int numPoints, float rho, float delta,std
     }
   }
   free(planes);
+  printf("time %.4fs\n",timeSince());
 
   //get rid of duplicate vertices
   int* mapping = (int*) malloc(sizeof(int)*newvertices.size());
