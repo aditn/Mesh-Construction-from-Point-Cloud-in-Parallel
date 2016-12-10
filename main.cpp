@@ -13,9 +13,10 @@
 /* our file dependencies */
 #include "structures.h"
 #include "approximateMesh.h"
+//#include "parseOBJ.h"
 
 /* linear algebra library */
-#include <util/eigen-eigen-26667be4f70b/Eigen/Dense>
+#include <Eigen/Dense>
 
 #define TINYNUM 0.00000001
 #define fABS(x) ((x<0)? -x : x)
@@ -25,7 +26,7 @@
 #define delta 0.6 //noise
 
 using namespace Eigen;
-
+bool DEBUG = false;
 /* parseFile takes a filename as input, tests it as an obj, and grabs all of its vertices
  * It returns of Point vector of these vertices
  * An error will be thrown if file cannot be read */
@@ -72,13 +73,18 @@ void saveMesh(std::vector<Vector3f> V, std::vector<Edge> edges, char* out_filena
   fout.close();
 }
 
+
 int main(int argc, char* argv[]){
   char* in_filename = NULL;
   int opt;
-  while((opt = getopt(argc,argv,"f:")) != -1){
+  while((opt = getopt(argc,argv,"f:d")) != -1){
     switch(opt){
       case 'f': //user must specify an input argument
         in_filename = optarg;
+        break;
+      case 'd':
+        DEBUG = true;
+        printf("debug flag set!\n");
         break;
       default:
         fprintf(stderr,"Error. Usage is <exec> -f <filename>\n");
@@ -87,7 +93,10 @@ int main(int argc, char* argv[]){
   }
 
   //step 1: parse input file/stream
+
   std::vector<Vector3f> vertices = parseFile(in_filename);
+  //std::vector<V3> vertices = parseFilePoints(in_filename);
+
   int numPoints = vertices.size();
   Vector3f* points = (Vector3f*) malloc(sizeof(Vector3f)*numPoints);
   for(int i=0;i<numPoints;i++) points[i] = vertices[i];

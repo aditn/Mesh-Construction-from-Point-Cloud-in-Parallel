@@ -12,15 +12,15 @@
 #include "structures.h"
 
 /* linear algebra library */
-#include <util/eigen-eigen-26667be4f70b/Eigen/Dense>
+#include <Eigen/Dense>
 
 using namespace std;
 using namespace Eigen;
 
 Plane getTangentPlane(vector<Vector3f> neighbors){
   Plane tangentPlane;
-  tangentPlane.center(0.f,0.f,0.f);
-  tangentPlane.normal(0.f,0.f,1.f);
+  tangentPlane.center = Vector3f(0.f,0.f,0.f);
+  tangentPlane.normal = Vector3f(0.f,0.f,0.f);
   int numNeighbors = neighbors.size();
 
   MatrixXf matPoints(numNeighbors,3);

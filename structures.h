@@ -1,11 +1,11 @@
 #include <cmath>
 
 /* linear algebra library */
-#include <util/eigen-eigen-26667be4f70b/Eigen/Dense>
+#include <Eigen/Dense>
 
 #include <stdio.h>
-#define MAX_LINE_SIZE 1024 //our max line size for obj file
 #define TINYNUM 0.000001
+
 
 struct V3{
   float x,y,z;
@@ -98,8 +98,8 @@ inline bool operator==(const V3 a, const V3 b){
 struct bbox{
   Eigen::Vector3f min,max;
   bbox(){
-    this->min(0.f,0.f,0.f);
-    this->max(0.f,0.f,0.f);
+    this->min = Eigen::Vector3f(0.f,0.f,0.f);
+    this->max = Eigen::Vector3f(0.f,0.f,0.f);
   }
   bbox(Eigen::Vector3f p1, Eigen::Vector3f p2){
     this->min = Eigen::Vector3f(std::min(p1(0),p2(0)),std::min(p1(1),p2(1)),std::min(p1(2),p2(2)));
@@ -137,11 +137,11 @@ struct bbox{
 };
 
 struct Plane{
-  Vector3f center, normal;
+  Eigen::Vector3f center, normal;
 };
 
-struct E{
-  Eigen::Vector3f v1,v2;
+/*struct E{
+  V3 v1,v2;/
   E(){
   this->v1(0.f,0.f,0.f);
   this->v2(0.f,0.f,0.f);
@@ -150,7 +150,7 @@ struct E{
     this->v1 = v1;
     this->v2 = v2;
   }
-};
+};*/
 
 struct Edge{
   int v1,v2;
@@ -176,5 +176,5 @@ struct Edge{
 };
 
 inline void printPoint(Eigen::Vector3f p){
-  printf("(%.3f,%.3f,%.3f)\n",p.x,p.y,p.z);
+  printf("(%.3f,%.3f,%.3f)\n",p(0),p(1),p(2));
 }
