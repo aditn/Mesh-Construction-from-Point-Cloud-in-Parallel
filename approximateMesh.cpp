@@ -79,7 +79,7 @@ void approximateMesh(Vector3f* points, int numPoints,std::vector<Vector3f>& fina
   printf("using OMP with %d threads\n",numThreads);
 #endif
   Plane* planes = computeTangentPlanes(points,numPoints);
-  Vector3f* newPoints = (Vector3f*) malloc(sizeof(Vector3f)*numPoints);
+  Vector3f* newPoints = (Vector3f*) malloc(sizeof(Vector3f)*numPoints); // Plane centroids
 #ifdef USE_OMP
   #pragma omp parallel for
 #endif
@@ -91,6 +91,7 @@ void approximateMesh(Vector3f* points, int numPoints,std::vector<Vector3f>& fina
   printf("getting max z...\n");
   int curmax = 0;
   int curidx = -1;
+  /* Starting point is point with largest z coordinate */
   for(int i=0;i<numPoints;i++){
     if(curidx==-1 || newPoints[i](2)>curmax){
       curmax = newPoints[i](2);
@@ -99,7 +100,7 @@ void approximateMesh(Vector3f* points, int numPoints,std::vector<Vector3f>& fina
   }
   planes[curidx].normal = Vector3f(0,0,(curmax>=0)? -1: 1); //TODO: why?
 
-  //substep: create graph of neighbors with edge weights
+  //substep: create graph of neighbors with edge weights (MST)
   printf("getting neighbor graph...\n");
 #ifdef USE_OMP
   std::vector<int>* neighbors = (std::vector<int>*) malloc(sizeof(std::vector<Edge>)*numPoints);
@@ -206,7 +207,7 @@ void approximateMesh(Vector3f* points, int numPoints,std::vector<Vector3f>& fina
   system.print();
   
   Vector3f universeSize = system.max-system.min;
-  float sideLength = rho+delta; //cube side length
+  float sideLength = ro+delta; //cube side length
   //modify system size to fit int num of cubes in each dir
   float widthDif = int(std::ceil(universeSize(0)/sideLength))*sideLength-universeSize(0),
        heightDif = int(std::ceil(universeSize(1)/sideLength))*sideLength-universeSize(1),
