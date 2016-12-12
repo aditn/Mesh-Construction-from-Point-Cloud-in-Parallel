@@ -140,18 +140,6 @@ struct Plane{
   Eigen::Vector3f center, normal;
 };
 
-/*struct E{
-  V3 v1,v2;/
-  E(){
-  this->v1(0.f,0.f,0.f);
-  this->v2(0.f,0.f,0.f);
-  }
-  E(Eigen::Vector3f v1,Eigen::Vector3f v2){
-    this->v1 = v1;
-    this->v2 = v2;
-  }
-};*/
-
 struct Edge{
   int v1,v2;
   float weight;

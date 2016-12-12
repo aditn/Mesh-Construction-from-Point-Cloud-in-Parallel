@@ -76,6 +76,7 @@ Plane* computeTangentPlanes(Vector3f* points, int numPoints){
     for(int idx=0;idx<numPoints;idx++){
       if(close_enough[idx_coord+idx]) neighbors.push_back(points[idx]);
     }
+    if(neighbors.size()<3) printf("neighbors for %d are %d\n", i,neighbors.size());
     planes[i] = getTangentPlane(neighbors);
   }
 
