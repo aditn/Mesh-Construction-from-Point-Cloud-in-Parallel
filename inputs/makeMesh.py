@@ -7,7 +7,8 @@ def dist(p1,p2):
     return ((x2-x1)**2+(y2-y1)**2+(z2-z1)**2)**0.5
 
 def makeSphereMesh(c,r,filename,numPoints=1000):
-    """randomly samples points on sphere's surface"""
+    """c: tuple of 3, r: int
+    randomly samples points on sphere's surface"""
     points=[]
     for i in xrange(numPoints):
         theta = math.pi*random()
