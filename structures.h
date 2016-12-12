@@ -7,7 +7,7 @@
 #define TINYNUM 0.000001
 
 
-struct V3{
+/*struct V3{
   float x,y,z;
   V3(){
     this->x=0;
@@ -93,8 +93,9 @@ inline void operator*=(V3& a,const float b){
 
 inline bool operator==(const V3 a, const V3 b){
   return ((fabs(a.x-b.x)<TINYNUM) && (fabs(a.y-b.y)<TINYNUM)) && (fabs(a.z-b.z)<TINYNUM);
-}
+}*/
 
+/* Bounding Box that represents cube */
 struct bbox{
   Eigen::Vector3f min,max;
   bbox(){
@@ -136,22 +137,12 @@ struct bbox{
   }
 };
 
+/* Used when computing tangent planes on the surface */
 struct Plane{
   Eigen::Vector3f center, normal;
 };
 
-/*struct E{
-  V3 v1,v2;/
-  E(){
-  this->v1(0.f,0.f,0.f);
-  this->v2(0.f,0.f,0.f);
-  }
-  E(Eigen::Vector3f v1,Eigen::Vector3f v2){
-    this->v1 = v1;
-    this->v2 = v2;
-  }
-};*/
-
+/* Defined as connection between two vertices */
 struct Edge{
   int v1,v2;
   float weight;
@@ -173,6 +164,12 @@ struct Edge{
   bool operator< (const Edge e) const{
    return (this->weight)<(e.weight);
  }
+};
+
+/* Used to group data in point clouds based on proximity */
+struct CubeData{
+  bbox cube;
+  std::vector<Eigen::Vector3f> vertices;
 };
 
 inline void printPoint(Eigen::Vector3f p){
