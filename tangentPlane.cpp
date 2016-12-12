@@ -13,6 +13,7 @@
 #include "structures.h"
 #include "tangentPlane.h"
 #include "constants.h"
+#include "ourTimer.h"
 
 /* linear algebra library */
 #include <Eigen/Dense>
@@ -21,6 +22,8 @@
 
 using namespace std;
 using namespace Eigen;
+
+extern float rho;
 
 Plane getTangentPlane(vector<Vector3f> neighbors){
   Plane tangentPlane;
@@ -56,234 +59,97 @@ Plane getTangentPlane(vector<Vector3f> neighbors){
   return tangentPlane;
 }
 
+void insertPoints(Eigen::Vector3f* points, int numPoints, CubeData*** splitData,bbox system,float cubeLength){
+  for(int i=0; i<numPoints; i++){
+    Vector3f curPoint = points[i];
+    Vector3f cubecoord = (curPoint-system.min)/cubeLength;
+    int x=floor(cubecoord(0)),
+        y=floor(cubecoord(1)),
+        z=floor(cubecoord(2));
+    splitData[x][y][z].vertices->push_back(curPoint);
+  }
+}
+
 Plane* computeTangentPlanes(Vector3f* points, int numPoints){
   Plane* planes = (Plane *) malloc(sizeof(Plane)*numPoints);
-  
+ 
+  printf("starting compute tangent Planes\n");
+  printf("time: %.4fs\n",timeSince());
+ 
   // Get bounding size of entire point cloud
-  Vector3f minxyz(FLT_MAX,FLT_MAX,FLT_MAX),
-           maxxyz(FLT_MIN,FLT_MIN,FLT_MIN);
-  for (int i=0; i<numPoints; i++){
-    if (points[i](0)<minxyz(0)) minxyz(0) = points[i](0);
-    if (points[i](1)<minxyz(1)) minxyz(1) = points[i](1);
-    if (points[i](2)<minxyz(2)) minxyz(2) = points[i](2);
-    if (points[i](0)>maxxyz(0)) maxxyz(0) = points[i](0);
-    if (points[i](1)>maxxyz(1)) maxxyz(1) = points[i](1);
-    if (points[i](2)>maxxyz(2)) maxxyz(2) = points[i](2);
-  }
-  Vector3f diff = maxxyz - minxyz;
+  bbox system;
+  for(int i=0;i<numPoints;i++) system.expand(points[i]);
+  Vector3f diff = system.max-system.min;
   
   // increase of universe to allow for even number of cubes
-  float cubeLength = (rho+delta);
+  float cubeLength = rho;
   float incrX = int(ceil(diff(0)/cubeLength)+1)*cubeLength - diff(0);
   float incrY = int(ceil(diff(1)/cubeLength)+1)*cubeLength - diff(1);
   float incrZ = int(ceil(diff(2)/cubeLength)+1)*cubeLength - diff(2);
-  Vector3f increase(incrX,incrY,incrZ);
-  maxxyz += increase/2; 
-  minxyz -= increase/2;
-  diff = maxxyz - minxyz;
-  printPoint(diff);
- 
-  Vector3f numCubesDim = diff/cubeLength;
+  Vector3f increase = 0.5*Vector3f(incrX,incrY,incrZ);
+  system.max += increase; 
+  system.min -= increase;
+  Vector3f numCubesDim = (system.max-system.min)/cubeLength;
+  printf("Num cubes in each dir is:\n");
   printPoint(numCubesDim);
-  int numCubes = int(numCubesDim(0)*numCubesDim(1)*numCubesDim(2));
-  printf("numCubes:%d, %f\n",numCubes, numCubesDim(0)*numCubesDim(1)*numCubesDim(2));
+  int dimx,dimy,dimz;
+  dimx=int(numCubesDim(0));
+  dimy=int(numCubesDim(1));
+  dimz=int(numCubesDim(2));
+  printf("Using %dx%dx%d\n",dimx,dimy,dimz);
   // Define Array of CubeData
-  CubeData*** splitData = (CubeData ***) malloc(numCubesDim(0)*sizeof(CubeData**));
-  for (int i=0; i<int(numCubesDim(0)); i++){
-    splitData[i] = (CubeData **) malloc(numCubesDim(1)*sizeof(CubeData*));
-    for (int j=0; j<int(numCubesDim(1)); j++){
-      splitData[i][j] = (CubeData *) malloc(numCubesDim(2)*sizeof(CubeData));
-      for (int k=0; k<int(numCubesDim(2)); k++){
-        CubeData cd;
-        cd.cube = bbox(minxyz+Vector3f(i*cubeLength,j*cubeLength,k*cubeLength),
-                       minxyz+Vector3f((i+1)*cubeLength,(j+1)*cubeLength,(k+1)*cubeLength));
-        //vector<Vector3f> v;
-        //cd.vertices = v;
-        splitData[i][j][k] = cd;
-        //printf("i:%d,j:%d,k:%d\n", i,j,k);
+  CubeData*** splitData = (CubeData ***) malloc(dimx*sizeof(CubeData**));
+  for (int i=0; i<dimx; i++){
+    splitData[i] = (CubeData **) malloc(dimy*sizeof(CubeData*));
+    for (int j=0; j<dimy; j++){
+      splitData[i][j] = (CubeData *) malloc(dimz*sizeof(CubeData));
+      for (int k=0; k<dimz; k++){
+        splitData[i][j][k] = CubeData(system.min+Vector3f(i*cubeLength,j*cubeLength,k*cubeLength),system.min+Vector3f((i+1)*cubeLength,(j+1)*cubeLength,(k+1)*cubeLength));
       }
     }
-  } 
-
-
-
-  /*CubeData* splitData = (CubeData *) calloc(int(numCubes), sizeof(CubeData));
-  //Vector3f curCoord = minxyz;
-  //Vector3f prevCoord = curCoord;
-  //Vector3f incr(cubeLength,cubeLength,cubeLength);
-  printf("made space for cubes\n");
-  // Set bbox for each Cube
-  int f = 0;
-  for(float z=minxyz(2); z<maxxyz(2); z+=cubeLength){
-    for(float y=minxyz(1); y<maxxyz(1); y+=cubeLength){
-      for(float x=minxyz(0); x<maxxyz(0); x+=cubeLength){
-        splitData[f].cube = bbox(Vector3f(x,y,z),Vector3f(x+cubeLength,y+cubeLength,z+cubeLength));
-        f+=1;
-      }
-    }
-  }*/
-
-  //printf("a: \n");
-  //printPoint(splitData[106].cube.min);
-  //printPoint(splitData[106].cube.max);
-  printf("assigned bbox info for each cube\n");
-  printf("maxxyz\n");
-  printPoint(maxxyz);
+  }
+  printf("structure allocated.\n");
+  printf("time: %.4fs\n",timeSince());
   // Put points into specific CubeData struct (O(n))
-  insertPoints(points, numPoints, splitData, maxxyz, minxyz, diff, cubeLength, numCubes);
-
-  printf("placed points into cube struct\n");
-  
-
-  //int width = int(diff(1)/cubeLength);
-  //int depth = int(diff(2)/cubeLength);
-  
+  insertPoints(points, numPoints, splitData, system, cubeLength);
+  printf("placed points into cube structs\n");
+  printf("time: %.4fs\n",timeSince());
+ 
   // Compute tangent planes by looking within specific cubes
-  for (int i=0; i<numPoints; i++){
+#ifdef USE_OMP
+  #pragma omp parallel for
+#endif
+  for (int pi=0; pi<numPoints; pi++){
     vector<Vector3f> neighbors;
-    Vector3f curPoint = points[i];
-    Vector3f cubesToSearchInd[27];
-    //Vector3f cubecoord = (curPoint-minxyz)/cubeLength;
+    Vector3f curPoint = points[pi];
+    int x,y,z;
+    x=(curPoint(0)-system.min(0))/cubeLength;
+    y=(curPoint(1)-system.min(1))/cubeLength;
+    z=(curPoint(2)-system.min(2))/cubeLength;
 
-    int indA=0;
-    int indB=0;
-    int indC=0;
-    Vector3f cubeInd;
-    for (int a=-1; a<2; a++){ // determine which cubes to search through
-      for (int b=-1; b<2; b++){
-        for (int c=-1; c<2; c++){
-          //printf("indC: %d\n", indC);
-          Vector3f neighPoint(curPoint(0)+a*cubeLength,
-                              curPoint(1)+b*cubeLength,
-                              curPoint(2)+c*cubeLength);
-          if ((neighPoint(0)>maxxyz(0) || neighPoint(0)<minxyz(0)) ||
-              (neighPoint(1)>maxxyz(1) || neighPoint(1)<minxyz(1)) ||
-              (neighPoint(2)>maxxyz(2) || neighPoint(2)<minxyz(2))){
-            cubesToSearchInd[indC] = Vector3f(-1,-1,-1);
-            indC += 1;
-            continue;
+    //check nearby cubes
+    for(int i=x-1;i<=x+1;i++){
+      for(int j=y-1;j<=y+1;j++){
+        for(int k=z-1;k<=z+1;k++){
+          if(i<0 || i>=dimx ||
+             j<0 || j>=dimy ||
+             k<0 || k>=dimz) continue; //out of bounds
+          CubeData curData = splitData[i][j][k];
+          vector<Vector3f> curverts = *(curData.vertices);
+          for(unsigned idx=0;idx<curverts.size();idx++){
+            float dist = (curverts[idx] - curPoint).norm();
+            if(dist<rho) neighbors.push_back(curverts[idx]);
           }
-          cubeInd = (neighPoint-minxyz)/cubeLength;
-          /*cubesToSearchInd[ind] = int(cubeInd(0))*width*depth+
-                                  int(cubeInd(1))*depth+
-                                  int(cubeInd(2));*/
-          cubesToSearchInd[indC] = Vector3f(int(cubeInd(0)),int(cubeInd(1)),int(cubeInd(2)));
-          indC += 1;
         }
-        indB += 3;
-        indC = indB;
-      }
-      indA += 9;
-      indB = indA;
-    }
-
-    //printf("cubeInd:\n");
-    //printf("got cubes to look through\n");
-
-    for(int k=0; k<27; k++){ // go through list of each cube
-      Vector3f cubeIndex = cubesToSearchInd[k];
-      //printf("cubeIndex:");
-      //printPoint(cubeIndex);
-      if (cubeIndex(0) == -1) continue;
-      CubeData c = splitData[int(cubeIndex(0))][int(cubeIndex(1))][int(cubeIndex(2))];
-      if (c.vertices.size()==0) continue;
-      for (unsigned j=0; j<c.vertices.size(); j++){
-        //printf("cubeIndex: ");
-        //printPoint(cubeIndex);
-        Vector3f p2 = c.vertices[j];
-        float dist = (p2-curPoint).norm();
-        if (dist<=(rho+delta)) neighbors.push_back(p2);
       }
     }
-    planes[i] = getTangentPlane(neighbors);
+    planes[pi] = getTangentPlane(neighbors);
   }
-  /*#ifdef USE_OMP
-  int cubeIndex;
-  #pragma omp parallel for
-  for (int i=0; i<numPoints; i++){
-    vector<Vector3f> neighbors;
-    Vector3f curPoint = points[i]/cubeLength; // normalize to fit cube dim
-    cubeIndex = curPoint(0)+diff(0)*(curPoint(1)+diff(2)*curPoint(2)); // maps 3d to 1d
-    for (unsigned j=0; j<splitData[cubeIndex].vertices.size(); j++){
-      Vector3f p2 = splitData[cubeIndex].vertices[j];
-      float dist = (p2-curPoint).norm();
-      if (dist<=(rho+delta)) neighbors.push_back(p2);
-    }
-    planes[i] = getTangentPlane(neighbors);
-  }
-  
-  #else
-  for (int i=0;i<numPoints;i++){
-    vector<Vector3f> neighbors;
-    Vector3f p1 = points[i];
-    for (int j=0;j<numPoints;j++){
-      // if point within ro+delta, add to nearby_points
-      Vector3f p2 = points[j];
-      float dist = (p2-p1).norm();
-      if (dist<=(rho+delta)) neighbors.push_back(points[j]);
-    }
-    planes[i] = getTangentPlane(neighbors);
-  }
-  #endif
-  */
-
-  /*for (int i=0; i<numPoints; i++){
-    printf("tangent%d, centroid, normal:",i);
-    printPoint(planes[i].center);
-    printPoint(planes[i].normal);
-  }*/
-
-
+  printf("planes made!\n");
+  printf("time: %.4fs\n",timeSince());
+ 
   return planes;
 }
-
-/*#ifdef USE_OMP
-Plane* computeTangentPlanes(Vector3f* points, int numPoints){
-  Plane* planes = (Plane *) malloc(sizeof(Plane)*numPoints);
-
-  bool* close_enough = (bool*) calloc(numPoints*numPoints,sizeof(bool));
-
-  #pragma omp parallel for
-  for(int i=0;i<numPoints*numPoints;i++){
-    int row = i/numPoints,
-        col = i%numPoints;
-    float dist = (points[col]-points[row]).norm();
-    if(dist <= (rho+delta)) close_enough[i] = true;
-  }
-
-  #pragma omp parallel for
-  for(int i=0;i<numPoints;i++){
-    vector<Vector3f> neighbors;
-    int idx_coord = numPoints*i;
-    for(int idx=0;idx<numPoints;idx++){
-      if(close_enough[idx_coord+idx]) neighbors.push_back(points[idx]);
-    }
-    if(neighbors.size()<3) printf("neighbors for %d are %d\n", i,(int)neighbors.size());
-    planes[i] = getTangentPlane(neighbors);
-  }
-
-  return planes;
-}
-#else
-Plane* computeTangentPlanes(Vector3f* points, int numPoints){
-  Plane* planes = (Plane *) malloc(sizeof(Plane)*numPoints);
-
-  for (int i=0;i<numPoints;i++){
-    vector<Vector3f> neighbors;
-    Vector3f p1 = points[i];
-    for (int j=0;j<numPoints;j++){
-      // if point within ro+delta, add to nearby_points
-      Vector3f p2 = points[j];
-      float dist = (p2-p1).norm();
-      if (dist<=(rho+delta)) neighbors.push_back(points[j]);
-    }
-    planes[i] = getTangentPlane(neighbors);
-  }
-  return planes;
-}
-#endif*/
-
-
 
 
 inline void insMin(int* idxs, float* vals, int N, int newIdx, float newVal){
@@ -348,80 +214,6 @@ float getDist(Vector3f p, Plane* planes, int numPlanes){
   //then approximate dist to surface
   return (p-planes[closestIdx].center).dot(planes[closestIdx].normal); 
 }
-
-void insertPoints(Eigen::Vector3f* points, int numPoints, CubeData*** splitData,
-  Eigen::Vector3f maxxyz,Eigen::Vector3f minxyz, Eigen::Vector3f diff, float cubeLength, int numCubes){
-  
-  Vector3f curPoint, cubecoord, curInd;
-  //int cubeInd;
-  //int width = int(diff(1)/cubeLength);
-  //int depth = int(diff(2)/cubeLength);
-  for(int i=0; i<numPoints; i++){
-    curPoint = points[i];
-    cubecoord = (curPoint-minxyz)/cubeLength;
-    //printPoint(cubecoord);
-    /*cubeInd = int(cubecoord(0))*width*depth+
-              int(cubecoord(1))*depth+
-              int(cubecoord(2));*/
-    curInd = Vector3f(floor(cubecoord(0)),floor(cubecoord(1)),floor(cubecoord(2)));
-    //cubeInd = int(cubecoord(2)) + width*(int(cubecoord(1))+depth*int(cubecoord(0)));
-    /*printf("quantPoint: ");
-    printPoint(cubecoord);
-    printf("curInd: ");
-    printPoint(curInd);
-    */
-    Vector3f bboxmin = splitData[int(curInd(0))][int(curInd(1))][int(curInd(2))].cube.min;
-    Vector3f bboxmax = splitData[int(curInd(0))][int(curInd(1))][int(curInd(2))].cube.max;
-    
-    /*printf("cubeInd: ");
-    printPoint(curInd);
-    printf("bbox dims (min, max)\n" );
-    printPoint(bboxmin);
-    printPoint(bboxmax);
-    printf("pointCur: ");
-    printPoint(curPoint);
-    */
-    if ((curPoint(0)<bboxmin(0) || curPoint(0)> bboxmax(0)) ||
-        (curPoint(1)<bboxmin(1) || curPoint(1)> bboxmax(1)) ||
-        curPoint(2)<bboxmin(2) || curPoint(2)> bboxmax(2)){
-      // point shouldn't be in this cube
-      printf("cubeInd: ");
-      printPoint(curInd);
-      printf("bbox dims (min, max)\n" );
-      printPoint(bboxmin);
-      printPoint(bboxmax);
-      printf("pointCur: ");
-      printPoint(curPoint);
-    }
-    //printf("booya\n");
-    /*if (cubeInd>numCubes){
-      printf("cubeIndold: %d\n",cubeInd);
-      printf("coordOld: ");
-      printPoint(cubecoord+minxyz);
-      for (int i = 0; i < 3; i++){
-        if (cubecoord(i)+minxyz(i) >= maxxyz(i)){
-          cubecoord(i)-=cubeLength;
-        }
-        else if (cubecoord(i)+minxyz(i) <= minxyz(i)){
-          cubecoord(i)+=cubeLength;
-        }
-      }
-      cubeInd = int(cubecoord(2)) + width*(int(cubecoord(1))+depth*int(cubecoord(0)));
-      printf("cubeIndnew: %d\n",cubeInd);
-      printf("coordNew: ");
-      printPoint(cubecoord+minxyz);
-    }
-    if (cubeInd==106) {
-      printf("hello");
-      printPoint(points[i]);
-    }*/
-    //printf("curInd:%d, %d, %d\n",int(curInd(0)),int(curInd(1)),int(curInd(2)));
-    CubeData c = splitData[int(curInd(0))][int(curInd(1))][int(curInd(2))];
-    //printf("can access cube\n");
-    c.vertices.push_back(curPoint);
-  }
-}
-
 
 void setDists(float* dists, Vector3f* ps, int numPoints, Plane* planes, int numPlanes){
   int* closestIdxs = (int*)   calloc(numPoints,sizeof(int));

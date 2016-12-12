@@ -30,6 +30,7 @@ extern int numThreads;
 #endif
 
 extern bool DEBUG;
+extern float rho;
 using namespace Eigen;
 
 struct marchingCube{
@@ -185,7 +186,7 @@ void approximateMesh(Vector3f* points, int numPoints,std::vector<Vector3f>& fina
   system.print();
   
   Vector3f universeSize = system.max-system.min;
-  float sideLength = rho+delta; //cube side length
+  float sideLength = rho; //cube side length
   //modify system size to fit int num of cubes in each dir
   float widthDif = int(std::ceil(universeSize(0)/sideLength))*sideLength-universeSize(0),
        heightDif = int(std::ceil(universeSize(1)/sideLength))*sideLength-universeSize(1),

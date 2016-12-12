@@ -169,7 +169,11 @@ struct Edge{
 /* Used to group data in point clouds based on proximity */
 struct CubeData{
   bbox cube;
-  std::vector<Eigen::Vector3f> vertices;
+  std::vector<Eigen::Vector3f>* vertices;
+  CubeData(Eigen::Vector3f min,Eigen::Vector3f max){
+    cube = bbox(min,max);
+    vertices = new std::vector<Eigen::Vector3f>;
+  }
 };
 
 inline void printPoint(Eigen::Vector3f p){

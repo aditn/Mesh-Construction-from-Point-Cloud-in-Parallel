@@ -25,20 +25,24 @@
 
 using namespace Eigen;
 bool DEBUG = false;
-int numThreads;
+int numThreads=1;
+float rho=-1;
 
 int main(int argc, char* argv[]){
   char* in_filename = NULL;
   int opt;
-  numThreads=1;
 #ifdef USE_OMP
-  while((opt = getopt(argc,argv,"f:t:d")) != -1){
+  while((opt = getopt(argc,argv,"f:t:dp:")) != -1){
 #else
-  while((opt = getopt(argc,argv,"f:d")) != -1){
+  while((opt = getopt(argc,argv,"f:dp:")) != -1){
 #endif
     switch(opt){
       case 'f': //user must specify an input argument
         in_filename = optarg;
+        break;
+      case 'p':
+        rho = atof(optarg);
+        printf("using rho of %.3f\n",rho);
         break;
 #ifdef USE_OMP
       case 't':
@@ -64,6 +68,10 @@ int main(int argc, char* argv[]){
         return 1;
     }
   }
+  if(rho<0){
+    fprintf(stderr,"You need to set a positive rho value\n");
+    return 1;
+  }
   omp_set_num_threads(numThreads);
   startTimer();
 
@@ -74,18 +82,6 @@ int main(int argc, char* argv[]){
   int numPoints = vertices.size();
   Vector3f* points = (Vector3f*) malloc(sizeof(Vector3f)*numPoints);
   for(int i=0;i<numPoints;i++) points[i] = vertices[i];
-  
-  /*float maxmindist = 0;
-  for(int i=0;i<numPoints;i++){
-    float mindist = (points[i]-points[(!i)?1:0]).norm();
-    for(int j=1;j<numPoints;j++){
-      if(i==j) continue;
-      float curdist = (points[i]-points[j]).norm();
-      if(curdist<mindist) mindist = curdist;
-    }
-    if(mindist>maxmindist) maxmindist = mindist;
-  }
-  printf("estimated rho+delta? is %.3f\n",maxmindist);*/
   printf("time %.4fs\n",timeSince());
   
   //step 2: create mesh in parallel
