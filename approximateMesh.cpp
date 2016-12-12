@@ -32,45 +32,12 @@ extern int numThreads;
 extern bool DEBUG;
 using namespace Eigen;
 
-inline void insMin(int* idxs, float* vals, int N, int newIdx, float newVal){
-  int curIdx = N-1;
-
-  if(vals[curIdx]>newVal){
-    vals[curIdx] = newVal;
-    idxs[curIdx] = newIdx;
-    curIdx--;
-  }else return;
-
-  while(curIdx>=0 && vals[curIdx]>newVal){
-    vals[curIdx+1] = vals[curIdx];
-    idxs[curIdx+1] = idxs[curIdx];
-    vals[curIdx] = newVal;
-    idxs[curIdx] = newIdx;
-    curIdx--;
-  }
-}
-
-std::vector<int> getNearest(Vector3f* points, int numPoints, int idx, int numNeighbors){
-  std::vector<int> neighbors;
-  if(numPoints<=numNeighbors){
-    for(int i=0;i<numPoints;i++) neighbors.push_back(i);
-    return neighbors;
-  }else{
-    int* nearestIdxs = (int*) malloc(sizeof(int)*numNeighbors);
-    float* nearestVals = (float*) malloc(sizeof(float)*numNeighbors);
-    for(int i=0;i<numNeighbors;i++) nearestVals[i] = INFINITY;
-
-    Vector3f curPoint = points[idx];
-    for(int i=0;i<numPoints;i++){
-      if(i==idx) continue;
-      insMin(nearestIdxs,nearestVals,numNeighbors,i,(curPoint-points[i]).norm());
-    }
-    for(int i=0;i<numNeighbors;i++) neighbors.push_back(nearestIdxs[i]);
-    free(nearestIdxs);
-    free(nearestVals);
-    return neighbors;
-  }
-}
+struct marchingCube{
+  bbox cube;
+  Vector3f points[8];
+  float dists[8];
+  char processed_mask; //8 bools of if you processed the cube's 8 vertices
+};
 
 inline bool sameSide(float val1,float val2){
   //assumes val is the dist
@@ -238,12 +205,76 @@ void approximateMesh(Vector3f* points, int numPoints,std::vector<Vector3f>& fina
   //step 4: Approximate mesh based on differences between cubes
 
 #ifdef USE_OMP
-  std::vector<Vector3f> newvertices;
-  std::vector<Edge> edges;
-
   const int cubecount = numCubes(0)*numCubes(1)*numCubes(2);
   const int xyCount = numCubes(0)*numCubes(1);
   const int xcount = numCubes(0);
+
+  marchingCube* marchingCubes = (marchingCube*) malloc(sizeof(marchingCube)*cubecount);
+  #pragma omp parallel for
+  for(int cubeIdx=0;cubeIdx<cubecount;cubeIdx++){
+    int intermediate = cubeIdx % xyCount;
+    int k = cubeIdx / xyCount;
+    int j = intermediate / xcount;
+    int i = intermediate % xcount;
+    marchingCube* MC = &marchingCubes[cubeIdx];
+    MC->cube=bbox(system.min+Vector3f(i*sideLength,j*sideLength,k*sideLength),
+                     system.min+Vector3f((i+1)*sideLength,(j+1)*sideLength,(k+1)*sideLength));
+    MC->points[0]=MC->cube.min; //blb
+    MC->points[1]=MC->cube.min+Vector3f(0,0,sideLength); //blf
+    MC->points[2]=MC->cube.min+Vector3f(sideLength,0,0); //brb
+    MC->points[3]=MC->cube.max-Vector3f(0,sideLength,0); //brf
+    MC->points[4]=MC->cube.min+Vector3f(0,sideLength,0); //tlb
+    MC->points[5]=MC->cube.max-Vector3f(sideLength,0,0); //tlf
+    MC->points[6]=MC->cube.max-Vector3f(0,0,sideLength); //trb
+    MC->points[7]=MC->cube.max; //trf
+    MC->processed_mask = 0; //no vertices have been processed
+  }
+
+  //calculate bottom left edge points
+  #pragma omp parallel for
+  for(int i=0;i<cubecount;i++){
+    marchingCube* MC = &marchingCubes[i];
+    setDists(&(MC->dists[0]),&(MC->points[0]),2,planes,numPoints);
+  }
+
+  //calculate bottom right edge points
+  #pragma omp parallel for
+  for(int i=0;i<cubecount;i++){
+    marchingCube* MC = &marchingCubes[i];
+    marchingCube* rightMC = &marchingCubes[i+1];
+    if(i+1==cubecount ||
+       ((MC->points[2]-rightMC->points[0]).norm()>0.0000001)){ //don't have right neighbor
+      setDists(&(MC->dists[2]),&(MC->points[2]),2,planes,numPoints);
+    }else{
+      MC->dists[2] = rightMC->dists[0];
+      MC->dists[3] = rightMC->dists[1];
+    }
+  }
+
+  //calculate top points
+  #pragma omp parallel for
+  for(int i=0;i<cubecount;i++){
+    marchingCube* MC = &marchingCubes[i];
+    marchingCube* topMC = &marchingCubes[i+xcount];
+    if(i+xcount >= cubecount ||
+       (MC->points[4]-topMC->points[0]).norm()>0.000001) setDists(&(MC->dists[4]),&(MC->points[4]),4,planes,numPoints);
+    else{
+      MC->dists[4] = topMC->dists[0];
+      MC->dists[5] = topMC->dists[1];
+      MC->dists[6] = topMC->dists[2];
+      MC->dists[7] = topMC->dists[3];
+    }
+  }
+/*
+  #pragma omp parallel for
+  for(int i=0;i<cubecount;i++){
+    marchingCube* MC = &marchingCubes[i];
+    setDists(&(MC->dists[0]),&(MC->points[0]),8,planes,numPoints);
+  }
+*/
+
+  printf("Got distances!\n");
+  printf("time %.4fs\n",timeSince());
 
   const int MAX_COUNT = 24; //max # verts/edges per cube
   Vector3f* percube_vertices = (Vector3f*) malloc(sizeof(Vector3f)*MAX_COUNT*cubecount);
@@ -253,30 +284,28 @@ void approximateMesh(Vector3f* points, int numPoints,std::vector<Vector3f>& fina
 
   #pragma omp parallel for
   for(int cubeIdx=0;cubeIdx<cubecount;cubeIdx++){
-    int intermediate = cubeIdx % xyCount;
-    int k = cubeIdx / xyCount;
-    int j = intermediate / xcount;
-    int i = intermediate % xcount;
-    bbox cube = bbox(system.min+Vector3f(i*sideLength,j*sideLength,k*sideLength),
-                     system.min+Vector3f((i+1)*sideLength,(j+1)*sideLength,(k+1)*sideLength));
+    marchingCube* MC = &marchingCubes[cubeIdx];
+
     Vector3f blb,blf,brb,brf,tlb,tlf,trb,trf; //[top/bottom][left/right][front/back] values at each corner
     float blbv,blfv,brbv,brfv,tlbv,tlfv,trbv,trfv; //actual vals at point
-    blb=cube.min;
-    blbv=getDist(blb,planes,numPoints);
-    blf=cube.min+Vector3f(0,0,sideLength);
-    blfv=getDist(blf,planes,numPoints);
-    brb=cube.min+Vector3f(sideLength,0,0);
-    brbv=getDist(brb,planes,numPoints);
-    brf=cube.max-Vector3f(0,sideLength,0);
-    brfv=getDist(brf,planes,numPoints);
-    tlb=cube.min+Vector3f(0,sideLength,0);
-    tlbv=getDist(tlb,planes,numPoints);
-    tlf=cube.max-Vector3f(sideLength,0,0);
-    tlfv=getDist(tlf,planes,numPoints);
-    trb=cube.max-Vector3f(0,0,sideLength);
-    trbv=getDist(trb,planes,numPoints);
-    trf=cube.max;
-    trfv=getDist(trf,planes,numPoints);
+
+    blb = MC->points[0];
+    blf = MC->points[1];
+    brb = MC->points[2];
+    brf = MC->points[3];
+    tlb = MC->points[4];
+    tlf = MC->points[5];
+    trb = MC->points[6];
+    trf = MC->points[7];
+
+    blbv = MC->dists[0];
+    blfv = MC->dists[1];
+    brbv = MC->dists[2];
+    brfv = MC->dists[3];
+    tlbv = MC->dists[4];
+    tlfv = MC->dists[5];
+    trbv = MC->dists[6];
+    trfv = MC->dists[7];
 
     int vertex_count = 0;
     int edge_count = 0;
@@ -360,7 +389,12 @@ void approximateMesh(Vector3f* points, int numPoints,std::vector<Vector3f>& fina
     percube_edge_counts[cubeIdx]=edge_count;
   }
 
+  //free marching Cubes
+  free(marchingCubes);
+
   //coalesce edge/vertex 'packets'
+  std::vector<Vector3f> newvertices;
+  std::vector<Edge> edges;
   int vertexOffset = 0;
   for(int i=0;i<cubecount;i++){
     const int base = MAX_COUNT*i;
