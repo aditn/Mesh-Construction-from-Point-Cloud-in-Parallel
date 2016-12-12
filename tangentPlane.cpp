@@ -145,6 +145,15 @@ Plane* computeTangentPlanes(Vector3f* points, int numPoints){
     }
     planes[pi] = getTangentPlane(neighbors);
   }
+
+  for(int i=0;i<dimx;i++){
+    for(int j=0;j<dimy;j++){
+      //free vertex buf?
+      free(splitData[i][j]);
+    }
+    free(splitData[i]);
+  }
+
   printf("planes made!\n");
   printf("time: %.4fs\n",timeSince());
  
