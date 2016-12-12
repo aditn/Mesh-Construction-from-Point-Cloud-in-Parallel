@@ -93,7 +93,7 @@ Plane* computeTangentPlanes(Vector3f* points, int numPoints){
       // if point within ro+delta, add to nearby_points
       Vector3f p2 = points[j];
       float dist = (p2-p1).norm();
-      if (dist<=(ro+delta)) neighbors.push_back(points[j]);
+      if (dist<=(rho+delta)) neighbors.push_back(points[j]);
     }
     planes[i] = getTangentPlane(neighbors);
   }
