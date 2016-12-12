@@ -258,6 +258,7 @@ Plane* computeTangentPlanes(Vector3f* points, int numPoints){
     for(int idx=0;idx<numPoints;idx++){
       if(close_enough[idx_coord+idx]) neighbors.push_back(points[idx]);
     }
+    if(neighbors.size()<3) printf("neighbors for %d are %d\n", i,(int)neighbors.size());
     planes[i] = getTangentPlane(neighbors);
   }
 
@@ -274,13 +275,62 @@ Plane* computeTangentPlanes(Vector3f* points, int numPoints){
       // if point within ro+delta, add to nearby_points
       Vector3f p2 = points[j];
       float dist = (p2-p1).norm();
-      if (dist<=(ro+delta)) neighbors.push_back(points[j]);
+      if (dist<=(rho+delta)) neighbors.push_back(points[j]);
     }
     planes[i] = getTangentPlane(neighbors);
   }
   return planes;
 }
 #endif*/
+
+
+
+
+inline void insMin(int* idxs, float* vals, int N, int newIdx, float newVal){
+  int curIdx = N-1;
+
+  if(vals[curIdx]>newVal){
+    vals[curIdx] = newVal;
+    idxs[curIdx] = newIdx;
+    curIdx--;
+  }else return;
+
+  while(curIdx>=0 && vals[curIdx]>newVal){
+    vals[curIdx+1] = vals[curIdx];
+    idxs[curIdx+1] = idxs[curIdx];
+    vals[curIdx] = newVal;
+    idxs[curIdx] = newIdx;
+    curIdx--;
+  }
+}
+
+std::vector<int> getNearest(Vector3f* points, int numPoints, int idx, int numNeighbors){
+  std::vector<int> neighbors;
+  if(numPoints<=numNeighbors){
+    for(int i=0;i<numPoints;i++) neighbors.push_back(i);
+    return neighbors;
+  }else{
+    int* nearestIdxs = (int*) malloc(sizeof(int)*numNeighbors);
+    float* nearestVals = (float*) malloc(sizeof(float)*numNeighbors);
+    for(int i=0;i<numNeighbors;i++) nearestVals[i] = INFINITY;
+
+    Vector3f curPoint = points[idx];
+    for(int i=0;i<numPoints;i++){
+      if(i==idx) continue;
+      insMin(nearestIdxs,nearestVals,numNeighbors,i,(curPoint-points[i]).norm());
+    }
+    for(int i=0;i<numNeighbors;i++) neighbors.push_back(nearestIdxs[i]);
+    free(nearestIdxs);
+    free(nearestVals);
+    return neighbors;
+  }
+}
+
+
+
+
+
+
 
 float getDist(Vector3f p, Plane* planes, int numPlanes){
   //given a point, approximate its distance to the nearest plane
@@ -369,5 +419,30 @@ void insertPoints(Eigen::Vector3f* points, int numPoints, CubeData*** splitData,
     CubeData c = splitData[int(curInd(0))][int(curInd(1))][int(curInd(2))];
     //printf("can access cube\n");
     c.vertices.push_back(curPoint);
+  }
+}
+
+
+void setDists(float* dists, Vector3f* ps, int numPoints, Plane* planes, int numPlanes){
+  int* closestIdxs = (int*)   calloc(numPoints,sizeof(int));
+
+  for(int j=0;j<numPoints;j++){ //assume plane0 is the closest
+    dists[j] = (ps[j]-planes[0].center).norm();
+  }
+
+  for(int i=1;i<numPlanes;i++){
+    Vector3f cur = planes[i].center;
+    for(int j=0;j<numPoints;j++){
+      float curDist = (ps[j]-cur).norm();
+      if(curDist<dists[j]){
+        dists[j]=curDist;
+        closestIdxs[j] = i;
+      }
+    }
+  }
+
+  for(int i=0;i<numPoints;i++){
+    Plane curPlane = planes[closestIdxs[i]];
+    dists[i] = (ps[i]-curPlane.center).dot(curPlane.normal);
   }
 }

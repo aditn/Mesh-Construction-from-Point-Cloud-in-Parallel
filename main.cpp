@@ -74,6 +74,18 @@ int main(int argc, char* argv[]){
   int numPoints = vertices.size();
   Vector3f* points = (Vector3f*) malloc(sizeof(Vector3f)*numPoints);
   for(int i=0;i<numPoints;i++) points[i] = vertices[i];
+  
+  /*float maxmindist = 0;
+  for(int i=0;i<numPoints;i++){
+    float mindist = (points[i]-points[(!i)?1:0]).norm();
+    for(int j=1;j<numPoints;j++){
+      if(i==j) continue;
+      float curdist = (points[i]-points[j]).norm();
+      if(curdist<mindist) mindist = curdist;
+    }
+    if(mindist>maxmindist) maxmindist = mindist;
+  }
+  printf("estimated rho+delta? is %.3f\n",maxmindist);*/
   printf("time %.4fs\n",timeSince());
   
   //step 2: create mesh in parallel
