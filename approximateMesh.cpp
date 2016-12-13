@@ -180,7 +180,6 @@ void approximateMesh(Vector3f* points, int numPoints,std::vector<Vector3f>& fina
   printPoint(numCubes);
 
   //step 4: Approximate mesh based on differences between cubes
-
 #ifdef USE_OMP
   const int cubecount = numCubes(0)*numCubes(1)*numCubes(2);
   const int xyCount = numCubes(0)*numCubes(1);
@@ -252,6 +251,26 @@ void approximateMesh(Vector3f* points, int numPoints,std::vector<Vector3f>& fina
 
   printf("Got distances!\n");
   printf("time %.4fs\n",timeSince());
+
+  if(DEBUG){
+    printf("DEBUG MODE: saving marching cubes mesh\n");
+    std::vector<Vector3f> cubePoints;
+    std::vector<Edge> cubeEdges;
+    for(int i=0;i<cubecount;i++){
+      marchingCube* MC = &marchingCubes[i];
+      for(int j=0;j<8;j++){
+        cubePoints.push_back(MC->points[j]);
+      }
+      int idx = cubePoints.size();
+      for(int j=0;j<8;j++){
+        for(int k=0;k<8;k++){
+          cubeEdges.push_back(Edge(idx-8+j,idx-8+k));
+        }
+      }
+    }
+    saveMesh(cubePoints,cubeEdges,"DEBUG_cubes.obj");
+    printf("DEBUG MODE: done.\n");
+  }
 
   const int MAX_COUNT = 24; //max # verts/edges per cube
   Vector3f* percube_vertices = (Vector3f*) malloc(sizeof(Vector3f)*MAX_COUNT*cubecount);
