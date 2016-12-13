@@ -32,7 +32,7 @@ std::vector<Vector3f> parseFilePoints(const char* filename){
     while(fin.getline(line,MAX_LINE_SIZE)){
       float x,y,z;
       sscanf(line,"%s %f %f %f",line_type,&x,&y,&z);
-      if(line_type[0]=='v') points.push_back(Vector3f(x,y,z)); //vertices are points in point cloud
+      if(line_type[0]=='v' || line_type[0]=='p') points.push_back(Vector3f(x,y,z)); //vertices are points in point cloud
       else printf("couldn't recognize type %s\n",line_type);
     }
   }
