@@ -67,7 +67,6 @@ void approximateMesh(Vector3f* points, int numPoints,std::vector<Vector3f>& fina
   
   //step 2: propogate normal directions of every plane
   //substep: find plane centroid with largest z coordinate
-  printf("getting max z...\n");
   int curmax = 0;
   int curidx = -1;
   /* Starting point is point with largest z coordinate */
@@ -81,30 +80,7 @@ void approximateMesh(Vector3f* points, int numPoints,std::vector<Vector3f>& fina
 
   //substep: create graph of neighbors with edge weights (MST)
   printf("getting neighbor graph...\n");
-#ifdef USE_OMP
-  std::vector<int>* neighbors = (std::vector<int>*) malloc(sizeof(std::vector<Edge>)*numPoints);
-  #pragma omp parallel for
-  for(int i=0;i<numPoints;i++){
-    neighbors[i] = getNearest(newPoints,numPoints,i,K);
-  }
-  std::vector<Edge> neighbor_edges;
-  for(int i=0;i<numPoints;i++){
-    for(unsigned int j=0;j<neighbors[i].size();j++){
-      int idx = neighbors[i][j];
-      neighbor_edges.push_back(Edge(i,idx,1-fabs(planes[i].normal.dot(planes[idx].normal))));
-    }
-  }
-  free(neighbors);
-#else
-  std::vector<Edge> neighbor_edges;
-  for(int i=0;i<numPoints;i++){
-    std::vector<int> neighbors = getNearest(newPoints,numPoints,i,K);
-    for(unsigned int j=0;j<neighbors.size();j++){
-      int idx = neighbors[j];
-      neighbor_edges.push_back(Edge(i,idx,1-fabs(planes[i].normal.dot(planes[idx].normal))));
-    }
-  }
-#endif
+  std::vector<Edge> neighbor_edges = getNeighborEdges(newPoints,numPoints,planes); 
   printf("time %.4fs\n",timeSince());
   
   if(DEBUG){

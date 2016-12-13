@@ -14,6 +14,7 @@
 #include "tangentPlane.h"
 #include "constants.h"
 #include "ourTimer.h"
+#include "tangentPlane.h"
 
 /* linear algebra library */
 #include <Eigen/Dense>
@@ -179,8 +180,8 @@ inline void insMin(int* idxs, float* vals, int N, int newIdx, float newVal){
   }
 }
 
-std::vector<int> getNearest(Vector3f* points, int numPoints, int idx, int numNeighbors){
-  std::vector<int> neighbors;
+vector<int> getNearest(Vector3f* points, int numPoints, int idx, int numNeighbors){
+  vector<int> neighbors;
   if(numPoints<=numNeighbors){
     for(int i=0;i<numPoints;i++) neighbors.push_back(i);
     return neighbors;
@@ -201,8 +202,32 @@ std::vector<int> getNearest(Vector3f* points, int numPoints, int idx, int numNei
   }
 }
 
-
-
+vector<Edge> getNeighborEdges(Vector3f* points,int numPoints,Plane* planes){
+  vector<Edge> edges;
+#ifdef USE_OMP
+  vector<int>* neighbors = (vector<int>*) malloc(sizeof(std::vector<Edge>)*numPoints);
+  #pragma omp parallel for
+  for(int i=0;i<numPoints;i++){
+    neighbors[i] = getNearest(points,numPoints,i,K);
+  }
+  for(int i=0;i<numPoints;i++){
+    for(unsigned int j=0;j<neighbors[i].size();j++){
+      int idx = neighbors[i][j];
+      edges.push_back(Edge(i,idx,1-fabs(planes[i].normal.dot(planes[idx].normal))));
+    }
+  }
+  free(neighbors);
+#else
+  for(int i=0;i<numPoints;i++){
+    vector<int> neighbors = getNearest(points,numPoints,i,K);
+    for(unsigned int j=0;j<neighbors.size();j++){
+      int idx = neighbors[j];
+      edges.push_back(Edge(i,idx,1-fabs(planes[i].normal.dot(planes[idx].normal))));
+    }
+  }
+#endif
+  return edges;
+}
 
 
 
