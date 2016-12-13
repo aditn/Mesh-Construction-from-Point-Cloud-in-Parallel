@@ -260,7 +260,6 @@ vector<Edge> getNeighborEdges(Vector3f* points,int numPoints,Plane* planes){
   printf("Using %dx%dx%d\n",dimx,dimy,dimz);
   // Define Array of CubeData
   LookupStructure = (CubeData ***) malloc(dimx*sizeof(CubeData**));
-  printf("Lookup struct is at %x\n",LookupStructure);
   for (int i=0; i<dimx; i++){
     LookupStructure[i] = (CubeData **) malloc(dimy*sizeof(CubeData*));
     for (int j=0; j<dimy; j++){

@@ -262,11 +262,23 @@ void approximateMesh(Vector3f* points, int numPoints,std::vector<Vector3f>& fina
         cubePoints.push_back(MC->points[j]);
       }
       int idx = cubePoints.size();
-      for(int j=0;j<8;j++){
-        for(int k=0;k<8;k++){
-          cubeEdges.push_back(Edge(idx-8+j,idx-8+k));
-        }
-      }
+      //top
+      cubeEdges.push_back(Edge(idx-8+0,idx-8+1));
+      cubeEdges.push_back(Edge(idx-8+0,idx-8+2));
+      cubeEdges.push_back(Edge(idx-8+3,idx-8+1));
+      cubeEdges.push_back(Edge(idx-8+3,idx-8+2));
+      
+      //walls
+      cubeEdges.push_back(Edge(idx-8+0,idx-8+4));
+      cubeEdges.push_back(Edge(idx-8+1,idx-8+5));
+      cubeEdges.push_back(Edge(idx-8+2,idx-8+6));
+      cubeEdges.push_back(Edge(idx-8+3,idx-8+7));
+      
+      //bottom
+      cubeEdges.push_back(Edge(idx-8+4,idx-8+5));
+      cubeEdges.push_back(Edge(idx-8+4,idx-8+6));
+      cubeEdges.push_back(Edge(idx-8+7,idx-8+5));
+      cubeEdges.push_back(Edge(idx-8+7,idx-8+6));
     }
     saveMesh(cubePoints,cubeEdges,"DEBUG_cubes.obj");
     printf("DEBUG MODE: done.\n");
@@ -514,8 +526,81 @@ void approximateMesh(Vector3f* points, int numPoints,std::vector<Vector3f>& fina
 #endif
   free(planes);
   printf("time %.4fs\n",timeSince());
+  printf("now deduping...\n");
 
   //get rid of duplicate vertices
+#ifdef USE_OMP
+  int maxcount = newvertices.size();
+  int* mapping = (int*) malloc(sizeof(int)*maxcount);
+  printf("find unique...\n");
+  #pragma omp parallel for
+  for(int i=0;i<maxcount;i++){
+    Vector3f v1 = newvertices[i];
+    bool unique = true;
+    for(int j=0;j<i;j++){
+      if(v1==newvertices[j]){
+        unique = false;
+        mapping[i] = j;
+        break;
+      }
+    }
+    if(unique) mapping[i] = i;
+  }
+
+  printf("map unique...\n");
+  int count=0;
+  int* new_mapping = (int*) malloc(sizeof(int)*maxcount);
+  for(int i=0;i<maxcount;i++){
+    if(i==mapping[i]){ //is unique
+      new_mapping[i]=(count++);
+    }else new_mapping[i] = new_mapping[mapping[i]];
+  }
+  printf("%.2f%% redundant!\n",(100.0*count)/((int)newvertices.size()));
+  Vector3f* finalPoints = (Vector3f*) malloc(sizeof(Vector3f)*count);
+
+  printf("set unique...\n");
+  #pragma omp parallel for
+  for(int i=0;i<maxcount;i++){
+    if(mapping[i]==i) finalPoints[new_mapping[i]] = newvertices[i];
+  }
+  finalVertices.assign(finalPoints,finalPoints+count);
+  free(finalPoints);
+
+  //map edges onto unique vertices, delete duplicate edges
+  printf("go through edges...\n");
+  bool** seenMat = (bool**) malloc(sizeof(bool*)*count);
+  for(int i=0;i<count; i++) seenMat[i] = (bool*) calloc(count,sizeof(bool));
+  omp_lock_t* writelocks = (omp_lock_t*) malloc(sizeof(omp_lock_t)*count);
+ 
+  #pragma omp parallel for 
+  for(int i=0;i<count;i++) omp_init_lock(&writelocks[i]);
+
+  int idx=0;
+  finalEdges.resize(edges.size()); //allow for max num
+  #pragma omp parallel for
+  for(unsigned int i=0;i<edges.size();i++){
+    int v1=new_mapping[edges[i].v1],
+        v2=new_mapping[edges[i].v2];
+    if(!seenMat[v1][v2]){
+      omp_set_lock(&writelocks[v1]);
+      if(!seenMat[v1][v2]){
+        seenMat[v1][v2]=true;
+        int oldval;
+        #pragma omp atomic capture
+        {oldval=idx;idx++;}
+        finalEdges[oldval]=Edge(v1,v2);
+      }
+      omp_unset_lock(&writelocks[v1]);
+    }
+  }
+  finalEdges.resize(idx); //cut off to be only filled edges
+  printf("clear structs\n");
+  #pragma omp parallel for
+  for(int i=0;i<count;i++) omp_destroy_lock(&writelocks[i]);
+
+  free(mapping);
+  free(new_mapping);
+#else
   int* mapping = (int*) malloc(sizeof(int)*newvertices.size());
   for(unsigned int i=0;i<newvertices.size();i++){
     Vector3f v1 = newvertices[i];
@@ -545,6 +630,8 @@ void approximateMesh(Vector3f* points, int numPoints,std::vector<Vector3f>& fina
       finalEdges.push_back(Edge(v1,v2));
     }
   }
+#endif
+
   if(DEBUG){
     printf("DEBUG MODE: saving approximated mesh\n");
     saveMesh(finalVertices,finalEdges,"DEBUG_approximate.obj");
