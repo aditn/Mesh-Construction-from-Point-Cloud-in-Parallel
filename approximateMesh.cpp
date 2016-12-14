@@ -31,6 +31,7 @@ extern int numThreads;
 
 extern bool DEBUG;
 extern float rho;
+extern DebugInfo debug_info;
 using namespace Eigen;
 
 struct marchingCube{
@@ -53,18 +54,14 @@ inline Vector3f interpolate(Vector3f pA,Vector3f pB,float vA,float vB){
 
 void approximateMesh(Vector3f* points, int numPoints,std::vector<Vector3f>& finalVertices,std::vector<Edge>& finalEdges){
   //step 1: create a plane for each point based off of its neighbors
-  printf("getting planes...\n");
-#ifdef USE_OMP
-  printf("using OMP with %d threads\n",numThreads);
-#endif
   Plane* planes = computeTangentPlanes(points,numPoints);
   Vector3f* newPoints = (Vector3f*) malloc(sizeof(Vector3f)*numPoints); // Plane centroids
 #ifdef USE_OMP
   #pragma omp parallel for
 #endif
   for(int i=0;i<numPoints;i++) newPoints[i] = planes[i].center;
-  printf("time %.4fs\n",timeSince());
-  
+  debug_info.planeCreation=timeSince(); 
+ 
   //step 2: propogate normal directions of every plane
   //substep: find plane centroid with largest z coordinate
   int curmax = 0;
@@ -79,10 +76,9 @@ void approximateMesh(Vector3f* points, int numPoints,std::vector<Vector3f>& fina
   planes[curidx].normal = Vector3f(0,0,(curmax>=0)? -1: 1); //TODO: why?
 
   //substep: create graph of neighbors with edge weights (MST)
-  printf("getting neighbor graph...\n");
   std::vector<Edge> neighbor_edges = getNeighborEdges(newPoints,numPoints,planes); 
-  printf("time %.4fs\n",timeSince());
-  
+  debug_info.kNN = timeSince();  
+
   if(DEBUG){
     printf("DEBUG MODE: saving neighbor mesh\n");
     saveMesh(std::vector<Vector3f>(newPoints,newPoints+numPoints),neighbor_edges,"DEBUG_neighbors.obj");
@@ -91,7 +87,6 @@ void approximateMesh(Vector3f* points, int numPoints,std::vector<Vector3f>& fina
 
   std::sort(neighbor_edges.begin(),neighbor_edges.end()); //sort min to max weight
   //substep: create MST rooted at prev idx
-  printf("setting up mst...\n");
   std::vector<Edge> mst_edges;
   int* pointForests = (int*) malloc(numPoints*sizeof(int));//kruskal's alogrithm connects forests until done
 #ifdef USE_OMP
@@ -111,7 +106,6 @@ void approximateMesh(Vector3f* points, int numPoints,std::vector<Vector3f>& fina
     }
   }
   free(pointForests);
-  printf("time %.4fs\n",timeSince());
   
   if(DEBUG){
     printf("DEBUG MODE: saving MST mesh\n");
@@ -120,7 +114,6 @@ void approximateMesh(Vector3f* points, int numPoints,std::vector<Vector3f>& fina
   }
 
   //substep: create adjacency list for faster lookup
-  printf("making adjacency list...\n");
   std::vector< std::vector<int> > adj(numPoints,std::vector<int>(0));
   for(unsigned int i=0;i<mst_edges.size();i++){
     Edge e = mst_edges[i];
@@ -129,7 +122,6 @@ void approximateMesh(Vector3f* points, int numPoints,std::vector<Vector3f>& fina
   }
   
   //substep: use DFS from curIdx on mst to propogate normal directions
-  printf("traversing mst to propagate normals...\n");
   bool* seen_mask = (bool*) calloc(numPoints,sizeof(bool));//calloc inits all to false
   std::vector<int> queue;
   queue.push_back(curidx);
@@ -147,7 +139,7 @@ void approximateMesh(Vector3f* points, int numPoints,std::vector<Vector3f>& fina
     }
   }
   free(seen_mask);
-  printf("time %.4fs\n",timeSince());
+  debug_info.MST = timeSince();
 
   if(DEBUG){
     printf("DEBUG MODE: saving normals mesh\n");
@@ -156,10 +148,9 @@ void approximateMesh(Vector3f* points, int numPoints,std::vector<Vector3f>& fina
   }
 
   //step 3: create a bounding box of the universe and split it into cubes
-  printf("Approximating mesh now!\n");
   bbox system;
   for(int i=0;i<numPoints;i++) system.expand(points[i]);
-  system.print();
+  debug_info.cloud = system;
   
   Vector3f universeSize = system.max-system.min;
   float sideLength = rho; //cube side length
@@ -176,8 +167,9 @@ void approximateMesh(Vector3f* points, int numPoints,std::vector<Vector3f>& fina
   if(!numCubes(0)) numCubes(0)++;
   if(!numCubes(1)) numCubes(1)++;
   if(!numCubes(2)) numCubes(2)++;
-  printf("Num cubes in each dir is:\n");
-  printPoint(numCubes);
+  debug_info.cubex=numCubes(0);
+  debug_info.cubey=numCubes(1);
+  debug_info.cubez=numCubes(2);
 
   //step 4: Approximate mesh based on differences between cubes
 #ifdef USE_OMP
@@ -241,16 +233,7 @@ void approximateMesh(Vector3f* points, int numPoints,std::vector<Vector3f>& fina
       MC->dists[7] = topMC->dists[3];
     }
   }
-/*
-  #pragma omp parallel for
-  for(int i=0;i<cubecount;i++){
-    marchingCube* MC = &marchingCubes[i];
-    setDists(&(MC->dists[0]),&(MC->points[0]),8,planes,numPoints);
-  }
-*/
-
-  printf("Got distances!\n");
-  printf("time %.4fs\n",timeSince());
+  debug_info.distsFound = timeSince();  
 
   if(DEBUG){
     printf("DEBUG MODE: saving marching cubes mesh\n");
@@ -426,7 +409,6 @@ void approximateMesh(Vector3f* points, int numPoints,std::vector<Vector3f>& fina
       for(int k=0;k<numCubes(2);k++){
         bbox cube = bbox(system.min+Vector3f(i*sideLength,j*sideLength,k*sideLength),
                          system.min+Vector3f((i+1)*sideLength,(j+1)*sideLength,(k+1)*sideLength));
-        //printf("cube %d,%d,%d is:\n",i,j,k);cubes[i][j][k].print();
         Vector3f blb,blf,brb,brf,tlb,tlf,trb,trf; //[top/bottom][left/right][front/back] values at each corner
         float blbv,blfv,brbv,brfv,tlbv,tlfv,trbv,trfv; //actual vals at point
         blb=cube.min;
@@ -525,14 +507,12 @@ void approximateMesh(Vector3f* points, int numPoints,std::vector<Vector3f>& fina
   }
 #endif
   free(planes);
-  printf("time %.4fs\n",timeSince());
-  printf("now deduping...\n");
+  debug_info.mesh=timeSince();
 
   //get rid of duplicate vertices
 #ifdef USE_OMP
   int maxcount = newvertices.size();
   int* mapping = (int*) malloc(sizeof(int)*maxcount);
-  printf("find unique...\n");
   #pragma omp parallel for
   for(int i=0;i<maxcount;i++){
     Vector3f v1 = newvertices[i];
@@ -547,7 +527,6 @@ void approximateMesh(Vector3f* points, int numPoints,std::vector<Vector3f>& fina
     if(unique) mapping[i] = i;
   }
 
-  printf("map unique...\n");
   int count=0;
   int* new_mapping = (int*) malloc(sizeof(int)*maxcount);
   for(int i=0;i<maxcount;i++){
@@ -555,10 +534,9 @@ void approximateMesh(Vector3f* points, int numPoints,std::vector<Vector3f>& fina
       new_mapping[i]=(count++);
     }else new_mapping[i] = new_mapping[mapping[i]];
   }
-  printf("%.2f%% redundant!\n",(100.0*count)/((int)newvertices.size()));
+  debug_info.redundancy = 100.0-(100.0*count)/((int)newvertices.size());
   Vector3f* finalPoints = (Vector3f*) malloc(sizeof(Vector3f)*count);
 
-  printf("set unique...\n");
   #pragma omp parallel for
   for(int i=0;i<maxcount;i++){
     if(mapping[i]==i) finalPoints[new_mapping[i]] = newvertices[i];
@@ -567,7 +545,6 @@ void approximateMesh(Vector3f* points, int numPoints,std::vector<Vector3f>& fina
   free(finalPoints);
 
   //map edges onto unique vertices, delete duplicate edges
-  printf("go through edges...\n");
   bool** seenMat = (bool**) malloc(sizeof(bool*)*count);
   for(int i=0;i<count; i++) seenMat[i] = (bool*) calloc(count,sizeof(bool));
   omp_lock_t* writelocks = (omp_lock_t*) malloc(sizeof(omp_lock_t)*count);
@@ -594,7 +571,6 @@ void approximateMesh(Vector3f* points, int numPoints,std::vector<Vector3f>& fina
     }
   }
   finalEdges.resize(idx); //cut off to be only filled edges
-  printf("clear structs\n");
   #pragma omp parallel for
   for(int i=0;i<count;i++) omp_destroy_lock(&writelocks[i]);
 
@@ -631,7 +607,7 @@ void approximateMesh(Vector3f* points, int numPoints,std::vector<Vector3f>& fina
     }
   }
 #endif
-
+  debug_info.dedup=timeSince();
   if(DEBUG){
     printf("DEBUG MODE: saving approximated mesh\n");
     saveMesh(finalVertices,finalEdges,"DEBUG_approximate.obj");

@@ -79,9 +79,6 @@ void insertPoints(Eigen::Vector3f* points, int numPoints, CubeData*** splitData,
 Plane* computeTangentPlanes(Vector3f* points, int numPoints){
   Plane* planes = (Plane *) malloc(sizeof(Plane)*numPoints);
  
-  printf("starting compute tangent Planes\n");
-  printf("time: %.4fs\n",timeSince());
- 
   // Get bounding size of entire point cloud
   universe=bbox();
   for(int i=0;i<numPoints;i++) universe.expand(points[i]);
@@ -95,12 +92,9 @@ Plane* computeTangentPlanes(Vector3f* points, int numPoints){
   universe.max += increase; 
   universe.min -= increase;
   Vector3f numCubesDim = (universe.max-universe.min)/cubeLength;
-  printf("Num cubes in each dir is:\n");
-  printPoint(numCubesDim);
   dimx=int(numCubesDim(0));
   dimy=int(numCubesDim(1));
   dimz=int(numCubesDim(2));
-  printf("Using %dx%dx%d\n",dimx,dimy,dimz);
   // Define Array of CubeData
   CubeData*** splitData = (CubeData ***) malloc(dimx*sizeof(CubeData**));
   for (int i=0; i<dimx; i++){
@@ -112,12 +106,8 @@ Plane* computeTangentPlanes(Vector3f* points, int numPoints){
       }
     }
   }
-  printf("structure allocated.\n");
-  printf("time: %.4fs\n",timeSince());
   // Put points into specific CubeData struct (O(n))
   insertPoints(points, numPoints, splitData, universe, cubeLength);
-  printf("placed points into cube structs\n");
-  printf("time: %.4fs\n",timeSince());
  
   // Compute tangent planes by looking within specific cubes
 #ifdef USE_OMP
@@ -158,9 +148,6 @@ Plane* computeTangentPlanes(Vector3f* points, int numPoints){
     free(splitData[i]);
   }
 
-  printf("planes made!\n");
-  printf("time: %.4fs\n",timeSince());
- 
   return planes;
 }
 
@@ -237,10 +224,8 @@ vector<Edge> getNeighborEdges(Vector3f* points,int numPoints,Plane* planes){
 vector<Edge> getNeighborEdges(Vector3f* points,int numPoints,Plane* planes){ 
   // Get bounding size of entire point cloud
   universe = bbox();
-  universe.print();
   for(int i=0;i<numPoints;i++) universe.expand(points[i]);
   Vector3f diff = universe.max-universe.min;
-  universe.print();
   cubeLength=rho;
   // increase of universe to allow for even number of cubes
   float incrX = int(ceil(diff(0)/cubeLength)+1)*cubeLength - diff(0);
@@ -249,15 +234,10 @@ vector<Edge> getNeighborEdges(Vector3f* points,int numPoints,Plane* planes){
   Vector3f increase = 0.5*Vector3f(incrX,incrY,incrZ);
   universe.max += increase; 
   universe.min -= increase;
-  universe.print();
-  printf("side len is %.3f\n",cubeLength);
   Vector3f numCubesDim = (universe.max-universe.min)/cubeLength;
-  printf("Num cubes in each dir is:\n");
-  printPoint(numCubesDim);
   dimx=int(numCubesDim(0));
   dimy=int(numCubesDim(1));
   dimz=int(numCubesDim(2));
-  printf("Using %dx%dx%d\n",dimx,dimy,dimz);
   // Define Array of CubeData
   LookupStructure = (CubeData ***) malloc(dimx*sizeof(CubeData**));
   for (int i=0; i<dimx; i++){
@@ -269,12 +249,8 @@ vector<Edge> getNeighborEdges(Vector3f* points,int numPoints,Plane* planes){
       }
     }
   }
-  printf("structure allocated.\n");
-  printf("time: %.4fs\n",timeSince());
   // Put points into specific CubeData struct (O(n))
   insertPoints(points, numPoints, LookupStructure, universe, cubeLength);
-  printf("placed points into cube structs\n");
-  printf("time: %.4fs\n",timeSince());
  
   // Compute nearest neighbors by looking at nearby cubes
   vector<Edge> edges;
@@ -334,10 +310,6 @@ vector<Edge> getNeighborEdges(Vector3f* points,int numPoints,Plane* planes){
   }
   
   free(neighbors);
-
-  printf("neighbor edges made!\n");
-  printf("time: %.4fs\n",timeSince());
- 
   return edges;
 }
 
