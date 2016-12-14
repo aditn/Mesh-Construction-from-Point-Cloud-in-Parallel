@@ -170,9 +170,11 @@ struct Edge{
 struct CubeData{
   bbox cube;
   std::vector<Eigen::Vector3f>* vertices;
+  std::vector<int>* indices;
   CubeData(Eigen::Vector3f min,Eigen::Vector3f max){
     cube = bbox(min,max);
-    vertices = new std::vector<Eigen::Vector3f>;
+    vertices = new std::vector<Eigen::Vector3f>(0);
+    indices = new std::vector<int>(0);
   }
 };
 
