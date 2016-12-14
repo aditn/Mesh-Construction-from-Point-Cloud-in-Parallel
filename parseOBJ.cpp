@@ -44,7 +44,7 @@ void saveMesh(std::vector<Vector3f> V, std::vector<Edge> edges, const char* out_
   std::ofstream fout;
   fout.open(out_filename);
   if(!fout.good()){
-    printf("couldn't write to %s\n",out_filename);
+    printf("couldn't write to %s. Did you not create an outputs/ folder in this directory?\n",out_filename);
     exit(0);
   }else{
     //print all of the vertices
