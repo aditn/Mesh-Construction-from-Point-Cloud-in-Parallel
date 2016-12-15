@@ -7,20 +7,24 @@ final report.
    reconstruction:
    `unzip inputs.zip`
 
-2. If `compile.bash` is not an executable run:
+2. Download Eigen libary 3.3.1 from http://eigen.tuxfamily.org/index.php?title=Main_Page
+   Extract the library to the `util/` folder. Enter the newly extracted folder and copy
+   the `Eigen/` folder to `util/`. The extracted folder may now be deleted.
+
+3. If `compile.bash` is not an executable run:
    `chmod a+x compile.bash`
 
-3. Compile code. This produces the executable `runnable`.
+4. Compile code. This produces the executable `runnable`.
    `./compile.bash`
 
-4. Run software from home directory on an input in inputs directory.
+5. Run software from home directory on an input in inputs directory.
    `./runnable -f inputs/[filename] -t [number of processors] -p [rho-value specified in report]`
 
-5. A detailed timing results will be printed to the console upon completion.
+6. A detailed timing results will be printed to the console upon completion.
 
-6. Outputs are located in `outputs/` in a `.obj` file.
+7. Outputs are located in `outputs/` in a `.obj` file.
 
-7. If you would like to view debug images shown in report add a `-d` flag to
+8. If you would like to view debug images shown in report add a `-d` flag to
    Step 4. The debug files are placed in the home directory.
 
 
