@@ -556,8 +556,12 @@ void approximateMesh(Vector3f* points, int numPoints,std::vector<Vector3f>& fina
   finalEdges.resize(edges.size()); //allow for max num
   #pragma omp parallel for
   for(unsigned int i=0;i<edges.size();i++){
-    int v1=new_mapping[edges[i].v1],
-        v2=new_mapping[edges[i].v2];
+    int verts1=new_mapping[edges[i].v1],
+        verts2=new_mapping[edges[i].v2];
+    int v1 = std::min(verts1,verts2),
+        v2 = std::max(verts1,verts2); //always lock on lower vertex
+    //locks needed so edges aren't duplicated
+    //Only need to lock one vertex because this will block duplicate edges (since duplicate both vertices)
     if(!seenMat[v1][v2]){
       omp_set_lock(&writelocks[v1]);
       if(!seenMat[v1][v2]){
