@@ -1,7 +1,8 @@
 # Mesh-Construction-from-Point-Cloud-in-Parallel
 
 The following instructions explain how to reproduce the results shown in our
-final report.
+final report. A link to our github repo is:
+https://github.com/aditn/Mesh-Construction-from-Point-Cloud-in-Parallel
 
 1. Unzip the inputs/ folder. These consist of the point clouds use for surface
    reconstruction:
