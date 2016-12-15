@@ -13,7 +13,7 @@ final report.
 3. Compile code. This produces the executable `runnable`.
    `./compile.bash`
 
-4. Run software from home directory on an input in inputs directory.
+4. Run our exectuable from its directory on an input in the inputs directory. It is best to use a rho value specified in our writeup, because too small a rho value will crash our program (we are unsure if this is a malloc issue or an algorithm issue). Fixing this bug is another future direction.
    `./runnable -f inputs/[filename] -t [number of processors] -p [rho-value specified in report]`
 
 5. A detailed timing results will be printed to the console upon completion.
