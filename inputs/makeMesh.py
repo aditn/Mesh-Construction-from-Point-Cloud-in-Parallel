@@ -6,7 +6,7 @@ def dist(p1,p2):
     (x2,y2,z2)=p2
     return ((x2-x1)**2+(y2-y1)**2+(z2-z1)**2)**0.5
 
-def makeSphereMesh(c,r,filename,numPoints=1000):
+def makeSphereMesh(c,r,filename,numPoints=10000):
     """c: tuple of 3, r: int
     randomly samples points on sphere's surface"""
     points=[]
@@ -57,7 +57,7 @@ def getSquarePoints(pos,negs,numPoints):
                 points += [(negs[0]+float(i)/uniformps*w,negs[1]+float(j)/uniformps*h,negs[2])]
     return points
 
-def makeCubeMesh(c,s,filename,numPoints=1000):
+def makeCubeMesh(c,s,filename,numPoints=10000):
     """uniformally samples points on cube's surface"""
     points = []
     pps = numPoints/6 #points per side
