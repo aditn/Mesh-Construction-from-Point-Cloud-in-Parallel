@@ -1,5 +1,7 @@
 # Mesh-Construction-from-Point-Cloud-in-Parallel
 
+To setup on Linux personal computer, you need to install OpenMP and C++ first.
+
 The following instructions explain how to reproduce the results shown in our
 final report. A link to our github repo is:
 https://github.com/aditn/Mesh-Construction-from-Point-Cloud-in-Parallel
