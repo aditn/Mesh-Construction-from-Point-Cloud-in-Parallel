@@ -14,21 +14,17 @@ https://github.com/aditn/Mesh-Construction-from-Point-Cloud-in-Parallel
    Extract the library to the `util/` folder. Enter the newly extracted folder and copy
    the `Eigen/` folder to `util/`. The extracted folder may now be deleted.
 
-3. If `compile.bash` is not an executable run:
-   `chmod a+x compile.bash`
+3. Compile code using the Makefile. This produces the executable `runnable`.
 
-4. Compile code. This produces the executable `runnable`.
-   `./compile.bash`
-
-5. Run our exectuable from its directory on an input in the inputs directory. It is best to use a rho value
+4. Run our exectuable from its directory on an input in the inputs directory. It is best to use a rho value
    specified in our writeup, because too small a rho value will crash our program (we are unsure if this is a malloc issue or an algorithm issue). Fixing this bug is another future direction.
    `./runnable -f inputs/[filename] -t [number of processors] -p [rho-value specified in report]`
 
-6. A detailed timing results will be printed to the console upon completion.
+5. A detailed timing results will be printed to the console upon completion.
 
-7. Outputs are located in `outputs/` in a `.obj` file.
+6. Outputs are located in `outputs/` in a `.obj` file.
 
-8. If you would like to view debug images shown in report add a `-d` flag to
+7. If you would like to view debug images shown in report add a `-d` flag to
    Step 4. The debug files are placed in the home directory.
 
 
